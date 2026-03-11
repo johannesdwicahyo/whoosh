@@ -155,7 +155,7 @@ end
 ```
 
 - `Whoosh::Schema` wraps dry-schema and dry-types internally
-- `field` declarations generate: dry-schema contract, JSON serializer, OpenAPI 3.1 schema
+- `field` declarations generate: dry-schema contract, serializers (JSON/MessagePack/Protobuf), OpenAPI 3.1 schema
 - `Whoosh::Types::Bool` is a framework-provided type alias mapping to `Dry::Types['bool']` (Ruby has no native `Bool` class)
 - Nested schemas supported
 - Coercion: String `"42"` to Integer `42` automatically
@@ -189,13 +189,14 @@ app.config.json_engine = :oj  # requires oj gem — 5-10x faster than stdlib jso
 - **JSON:** Uses Ruby stdlib `json` by default. Optional `Oj` for performance.
 - **MessagePack:** Uses `msgpack` gem. Auto-discovered from Gemfile.
 - **Protobuf:** Uses `google-protobuf` gem. Requires `.proto` files in `protos/` directory. Generator: `whoosh generate proto ChatRequest`.
+- **Request deserialization:** Incoming request bodies are auto-deserialized based on `Content-Type` header. `application/json` → JSON parse, `application/msgpack` → MessagePack unpack, `application/protobuf` → Protobuf decode. The deserialized data is then validated through the same dry-schema contract.
 - Custom type serializers registered via `Whoosh::Schema.serializer_for(Type, &block)`
 - `BigDecimal` serializes as string by default (precision-safe), configurable to float
 - `Time` fields serialize to ISO 8601 in JSON, native timestamps in MessagePack/Protobuf
 
 ### Error Responses
 
-All errors follow a consistent JSON structure:
+All errors are returned as JSON regardless of the `Accept` header. This is a deliberate design decision — error responses should always be human-readable for debugging, and JSON is universally parseable by all clients:
 
 ```json
 {
@@ -497,6 +498,7 @@ end
 | tokenizer-ruby | `tokenizer` | No |
 | zvec-ruby | `zvec` | No |
 | reranker-ruby | `reranker` | No |
+| sequel | `db` | No (see Database section) |
 
 ## Dependency Injection
 
@@ -748,15 +750,15 @@ If grace period expires, forcefully terminate remaining requests and exit.
 | **Middleware** | Minimal by default | Only security headers and logging loaded unless you add auth/rate limiting |
 | **Concurrency** | Falcon fibers for I/O-bound work | While waiting on LLM API, other requests are served. No wasted threads |
 | **Schema validation** | Dry-schema with compiled contracts | Contracts compiled once at boot, fast per-request matching |
-| **Zero-copy streaming** | Rack hijack with direct socket writes | LLM chunks go straight to client, no intermediate buffering |
+| **Direct socket streaming** | Rack hijack with direct socket writes | LLM chunks go straight to client, no Rack response body buffering |
 
 ### Benchmark Targets
 
-These are targets to hold the framework accountable:
+These are targets to hold the framework accountable. Response times measured as framework overhead only (Rack `call(env)` to response return, excluding network):
 
 | Scenario | Target |
 |----------|--------|
-| Simple JSON endpoint | <1ms response time |
+| Simple JSON endpoint | <1ms framework overhead |
 | Schema-validated endpoint | <2ms overhead over business logic |
 | Boot time (minimal app) | <100ms |
 | Boot time (full app with plugins) | <500ms |
@@ -817,7 +819,7 @@ whoosh db status           # show migration status
 ```
 
 ```ruby
-# db/migrations/001_create_users.rb
+# db/migrations/20260311100000_create_users.rb (timestamp-based to avoid conflicts in teams)
 Sequel.migration do
   change do
     create_table(:users) do
@@ -846,6 +848,7 @@ Users who prefer ActiveRecord, ROM, or raw connections can use `app.provide`:
 
 ```ruby
 # ActiveRecord (user manages their own setup)
+# Note: this overrides the auto-discovered Sequel `db` accessor
 require "active_record"
 app.provide(:db) do
   ActiveRecord::Base.establish_connection(ENV["DATABASE_URL"])
