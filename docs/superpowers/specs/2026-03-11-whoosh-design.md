@@ -161,14 +161,37 @@ end
 - Coercion: String `"42"` to Integer `42` automatically
 - `Time` fields serialize to ISO 8601 format (`2026-03-11T10:30:00Z`)
 
-### JSON Serialization
+### Serialization
 
-- Uses Ruby stdlib `json` by default. Users can configure `Oj` for performance:
-  ```ruby
-  app.config.json_engine = :oj  # requires oj gem in Gemfile
-  ```
+Whoosh supports multiple serialization formats. The client chooses via `Accept` header, or endpoints can set a default format.
+
+| Format | Content-Type | Use Case | Trade-off |
+|--------|-------------|----------|-----------|
+| **JSON** (default) | `application/json` | Browser clients, debugging, OpenAPI docs | Human-readable, universally supported |
+| **MessagePack** | `application/msgpack` | Service-to-service, MCP transport, large payloads | ~2x faster, ~30% smaller than JSON |
+| **Protobuf** | `application/protobuf` | High-performance production APIs, strict contracts | Fastest, smallest, requires `.proto` schema files |
+
+```ruby
+# Auto-negotiation via Accept header (no config needed):
+# Accept: application/json       → JSON response
+# Accept: application/msgpack    → MessagePack response
+# Accept: application/protobuf   → Protobuf response
+
+# Per-endpoint default format:
+app.post "/embeddings", format: :msgpack do |req|
+  { vectors: zvec.encode(req.texts) }  # large float arrays → msgpack saves ~50% bandwidth
+end
+
+# Global JSON engine config:
+app.config.json_engine = :oj  # requires oj gem — 5-10x faster than stdlib json
+```
+
+- **JSON:** Uses Ruby stdlib `json` by default. Optional `Oj` for performance.
+- **MessagePack:** Uses `msgpack` gem. Auto-discovered from Gemfile.
+- **Protobuf:** Uses `google-protobuf` gem. Requires `.proto` files in `protos/` directory. Generator: `whoosh generate proto ChatRequest`.
 - Custom type serializers registered via `Whoosh::Schema.serializer_for(Type, &block)`
 - `BigDecimal` serializes as string by default (precision-safe), configurable to float
+- `Time` fields serialize to ISO 8601 in JSON, native timestamps in MessagePack/Protobuf
 
 ### Error Responses
 
@@ -597,9 +620,16 @@ whoosh routes                       # list all routes
 
 whoosh generate endpoint chat       # endpoint + schema + test
 whoosh generate schema User         # schema file
+whoosh generate model User name:string email:string  # model + migration + test
+whoosh generate migration create_users               # blank migration
 whoosh generate plugin my_plugin    # plugin boilerplate
+whoosh generate proto ChatRequest   # .proto file from schema
 
 whoosh console                      # IRB with app loaded
+
+whoosh db migrate                   # run pending migrations
+whoosh db rollback                  # rollback last migration
+whoosh db status                    # show migration status
 
 whoosh mcp                          # MCP stdio transport
 whoosh mcp --sse                   # MCP SSE transport
@@ -618,6 +648,13 @@ myapp/
 │   └── health.rb          # Example class-based endpoint
 ├── schemas/
 │   └── health.rb          # Example schema
+├── models/
+│   └── .keep              # Sequel models (when using database)
+├── db/
+│   └── migrations/
+│       └── .keep          # Sequel migrations
+├── protos/
+│   └── .keep              # Protobuf .proto files (when using protobuf)
 ├── middleware/
 │   └── .keep
 ├── test/
@@ -697,6 +734,135 @@ If grace period expires, forcefully terminate remaining requests and exit.
 - **Router:** Immutable after boot. No locking needed.
 - **Plugins:** Ecosystem gems are expected to be stateless or internally thread-safe. Whoosh documents this contract for plugin authors.
 
+## Performance
+
+### Why Whoosh Is Fast
+
+| Layer | Strategy | Impact |
+|-------|----------|--------|
+| **Ruby runtime** | Ruby 3.4+ with YJIT enabled by default | 2-3x faster than non-YJIT Ruby |
+| **Server** | Falcon with fiber-based async I/O | Handles thousands of concurrent connections without thread overhead. Critical for AI workloads waiting on LLM APIs (500ms-10s per call) |
+| **Router** | Trie-based, compiled at boot | O(k) lookup, no regex matching per-request like Sinatra/Rails |
+| **Boot time** | Lazy loading — only core loads at startup | Sub-100ms boot vs 2-5s for Rails. MCP, auth, streaming, plugins load on first use |
+| **Serialization** | Multi-format: JSON (Oj), MessagePack, Protobuf | MessagePack ~2x faster than JSON, Protobuf ~5x. Client chooses via Accept header |
+| **Middleware** | Minimal by default | Only security headers and logging loaded unless you add auth/rate limiting |
+| **Concurrency** | Falcon fibers for I/O-bound work | While waiting on LLM API, other requests are served. No wasted threads |
+| **Schema validation** | Dry-schema with compiled contracts | Contracts compiled once at boot, fast per-request matching |
+| **Zero-copy streaming** | Rack hijack with direct socket writes | LLM chunks go straight to client, no intermediate buffering |
+
+### Benchmark Targets
+
+These are targets to hold the framework accountable:
+
+| Scenario | Target |
+|----------|--------|
+| Simple JSON endpoint | <1ms response time |
+| Schema-validated endpoint | <2ms overhead over business logic |
+| Boot time (minimal app) | <100ms |
+| Boot time (full app with plugins) | <500ms |
+| Concurrent connections (Falcon) | 10,000+ |
+| MessagePack serialization (1KB payload) | <0.1ms |
+| Protobuf serialization (1KB payload) | <0.05ms |
+
+### YJIT Configuration
+
+```ruby
+# config/app.yml
+performance:
+  yjit: true          # enabled by default on Ruby 3.4+
+  yjit_exec_mem: 64   # MB, default 64
+```
+
+Whoosh enables YJIT at boot if available. Logs a warning if Ruby 3.4+ is detected without YJIT support compiled in.
+
+## Database
+
+Whoosh has no built-in ORM — it stays lean. **Sequel** is the recommended database library, auto-discovered from Gemfile like other plugins.
+
+### Sequel Integration (recommended)
+
+```ruby
+# Gemfile
+gem "sequel"
+gem "pg"  # or sqlite3, mysql2, etc.
+
+# config/app.yml
+database:
+  url: <%= ENV.fetch("DATABASE_URL", "sqlite://db/development.sqlite3") %>
+  max_connections: 10
+  log_level: debug  # logs SQL in development
+
+# In endpoints — auto-discovered, available as `db`:
+app.post "/users", request: CreateUserRequest do |req|
+  user = db[:users].insert(name: req.name, email: req.email)
+  { id: user, name: req.name }
+end
+
+# Or use Sequel models:
+app.get "/users/:id" do |req|
+  user = User[req.params[:id]]
+  { id: user.id, name: user.name, email: user.email }
+end
+```
+
+### Migration Support
+
+```bash
+whoosh generate migration create_users
+# Creates: db/migrations/001_create_users.rb
+
+whoosh db migrate          # run pending migrations
+whoosh db rollback         # rollback last migration
+whoosh db status           # show migration status
+```
+
+```ruby
+# db/migrations/001_create_users.rb
+Sequel.migration do
+  change do
+    create_table(:users) do
+      primary_key :id
+      String :name, null: false
+      String :email, null: false, unique: true
+      DateTime :created_at, default: Sequel::CURRENT_TIMESTAMP
+    end
+  end
+end
+```
+
+### Generator
+
+```bash
+whoosh generate model User name:string email:string
+# Creates:
+#   models/user.rb          — Sequel::Model subclass
+#   db/migrations/001_create_users.rb
+#   test/models/user_test.rb
+```
+
+### Other Databases
+
+Users who prefer ActiveRecord, ROM, or raw connections can use `app.provide`:
+
+```ruby
+# ActiveRecord (user manages their own setup)
+require "active_record"
+app.provide(:db) do
+  ActiveRecord::Base.establish_connection(ENV["DATABASE_URL"])
+  ActiveRecord::Base.connection
+end
+
+# Raw PG connection
+require "pg"
+app.provide(:db) { PG.connect(ENV["DATABASE_URL"]) }
+```
+
+### Plugin Mapping
+
+| Gem | Accessor | Auto-config |
+|-----|----------|-------------|
+| sequel | `db` | Yes — reads `database` from `config/app.yml` |
+
 ## Internal Structure
 
 ```
@@ -709,6 +875,12 @@ lib/
     ├── schema.rb
     ├── types.rb                    # Whoosh::Types::Bool and custom types
     ├── config.rb                   # Configuration loading (YAML + ENV + DSL)
+    ├── serialization/
+    │   ├── json.rb                 # JSON engine (stdlib / Oj)
+    │   ├── msgpack.rb              # MessagePack support
+    │   ├── protobuf.rb             # Protobuf support
+    │   └── negotiator.rb           # Content-type negotiation via Accept header
+    ├── database.rb                 # Sequel integration and migration helpers
     ├── dependency_injection.rb
     ├── endpoint.rb                 # Class-based endpoint base class
     ├── errors.rb                   # Error types and error handler
@@ -763,7 +935,8 @@ lib/
     │       ├── tokenizer_ruby.rb
     │       ├── zvec_ruby.rb
     │       ├── reranker_ruby.rb
-    │       └── ruby_llm.rb
+    │       ├── ruby_llm.rb
+    │       └── sequel.rb
     └── cli/
         ├── main.rb
         ├── commands/
@@ -772,11 +945,15 @@ lib/
         │   ├── routes.rb
         │   ├── generate.rb
         │   ├── console.rb
-        │   └── mcp.rb
+        │   ├── mcp.rb
+        │   └── db.rb               # migrate, rollback, status
         └── templates/
             ├── new/
             ├── endpoint.rb.tt
             ├── schema.rb.tt
+            ├── model.rb.tt
+            ├── migration.rb.tt
+            ├── proto.rb.tt
             └── plugin.rb.tt
 ```
 
@@ -793,7 +970,10 @@ lib/
 
 - `falcon` — async server (recommended)
 - `puma` — threaded server (alternative)
-- `oj` — fast JSON serialization (optional, stdlib json used by default)
+- `oj` — fast JSON serialization
+- `msgpack` — MessagePack serialization
+- `google-protobuf` — Protobuf serialization
+- `sequel` + database driver — database access (recommended)
 - `ruby_llm` — LLM API access
 - All ecosystem gems — auto-discovered as plugins
 
