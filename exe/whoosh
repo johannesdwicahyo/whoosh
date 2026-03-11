@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "whoosh"
+# CLI implementation will be added in Phase 8
+puts "Whoosh v#{Whoosh::VERSION}"
