@@ -53,6 +53,8 @@ module Whoosh
 
   module Serialization
     autoload :Json,       "whoosh/serialization/json"
+    autoload :Msgpack,    "whoosh/serialization/msgpack"
+    autoload :Protobuf,   "whoosh/serialization/protobuf"
     autoload :Negotiator, "whoosh/serialization/negotiator"
   end
 
