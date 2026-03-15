@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 require "json"
+require "set"
 
 module Whoosh
   class App
-    attr_reader :config, :logger
+    attr_reader :config, :logger, :plugin_registry
 
     def initialize(root: Dir.pwd)
       @config = Config.load(root: root)
@@ -19,6 +20,7 @@ module Whoosh
       )
       @group_prefix = ""
       @group_middleware = []
+      @plugin_registry = Plugins::Registry.new
 
       setup_default_middleware
     end
@@ -86,6 +88,46 @@ module Whoosh
       @router.routes
     end
 
+    # --- Plugin DSL ---
+
+    def plugin(name, enabled: true, **config)
+      if enabled == false
+        @plugin_registry.disable(name)
+      else
+        @plugin_registry.configure(name, config) unless config.empty?
+      end
+    end
+
+    def setup_plugin_accessors
+      @plugin_registry.define_accessors(self)
+    end
+
+    # --- Endpoint loading ---
+
+    def load_endpoints(dir)
+      before = ObjectSpace.each_object(Class).select { |k| k < Endpoint }.to_set
+
+      Dir.glob(File.join(dir, "**", "*.rb")).sort.each do |file|
+        require file
+      end
+
+      after = ObjectSpace.each_object(Class).select { |k| k < Endpoint }.to_set
+      (after - before).each { |klass| register_endpoint(klass) }
+    end
+
+    def register_endpoint(endpoint_class)
+      endpoint_class.declared_routes.each do |route|
+        handler = {
+          block: nil,
+          endpoint_class: endpoint_class,
+          request_schema: route[:request_schema],
+          response_schema: route[:response_schema],
+          middleware: []
+        }
+        @router.add(route[:method], route[:path], handler, **route[:metadata])
+      end
+    end
+
     # --- Rack interface ---
 
     def to_rack
@@ -136,21 +178,28 @@ module Whoosh
         request.instance_variable_set(:@body, result.data)
       end
 
-      # Resolve dependencies
-      block = handler[:block]
-      block_params = block.parameters
-      kwargs_names = block_params.select { |type, _| type == :keyreq || type == :key }.map(&:last)
-      kwargs = @di.inject_for(kwargs_names, request: request)
-
       # Call handler
-      result = if kwargs.any? && block_params.any? { |type, _| type == :req || type == :opt }
-        block.call(request, **kwargs)
-      elsif kwargs.any?
-        block.call(**kwargs)
-      elsif block_params.any? { |type, _| type == :req || type == :opt }
-        block.call(request)
+      if handler[:endpoint_class]
+        # Class-based endpoint
+        endpoint = handler[:endpoint_class].new
+        context = Endpoint::Context.new(self, request)
+        result = endpoint.call(context.request)
       else
-        block.call
+        # Inline block endpoint
+        block = handler[:block]
+        block_params = block.parameters
+        kwargs_names = block_params.select { |type, _| type == :keyreq || type == :key }.map(&:last)
+        kwargs = @di.inject_for(kwargs_names, request: request)
+
+        result = if kwargs.any? && block_params.any? { |type, _| type == :req || type == :opt }
+          instance_exec(request, **kwargs, &block)
+        elsif kwargs.any?
+          instance_exec(**kwargs, &block)
+        elsif block_params.any? { |type, _| type == :req || type == :opt }
+          instance_exec(request, &block)
+        else
+          instance_exec(&block)
+        end
       end
 
       Response.json(result)
