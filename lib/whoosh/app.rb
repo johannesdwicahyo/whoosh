@@ -2,6 +2,7 @@
 
 require "json"
 require "set"
+require "stringio"
 
 module Whoosh
   class App
@@ -129,6 +130,29 @@ module Whoosh
       @acl.instance_eval(&block)
     end
 
+    # --- Streaming helpers ---
+
+    def stream(type, &block)
+      io = StringIO.new
+      case type
+      when :sse
+        sse = Streaming::SSE.new(io)
+        block.call(sse)
+        io.rewind
+        [200, Streaming::SSE.headers, [io.read]]
+      else
+        raise ArgumentError, "Unknown stream type: #{type}"
+      end
+    end
+
+    def stream_llm(&block)
+      io = StringIO.new
+      llm_stream = Streaming::LlmStream.new(io)
+      block.call(llm_stream)
+      io.rewind
+      [200, Streaming::LlmStream.headers, [io.read]]
+    end
+
     # --- Endpoint loading ---
 
     def load_endpoints(dir)
@@ -242,7 +266,11 @@ module Whoosh
         end
       end
 
-      Response.json(result)
+      if result.is_a?(Array) && result.length == 3 && result[0].is_a?(Integer)
+        result
+      else
+        Response.json(result)
+      end
 
     rescue Errors::HttpError => e
       Response.error(e)
