@@ -28,6 +28,7 @@ module Whoosh
       @acl = Auth::AccessControl.new
       @mcp_server = MCP::Server.new
       @mcp_manager = MCP::ClientManager.new
+      @openapi_config = { title: "Whoosh API", version: Whoosh::VERSION }
 
       setup_default_middleware
     end
@@ -138,6 +139,14 @@ module Whoosh
       @mcp_manager.register(name, command: command, **options)
     end
 
+    # --- OpenAPI DSL ---
+
+    def openapi(&block)
+      builder = OpenAPIConfigBuilder.new
+      builder.instance_eval(&block)
+      @openapi_config.merge!(builder.to_h)
+    end
+
     # --- Streaming helpers ---
 
     def stream(type, &block)
@@ -193,6 +202,7 @@ module Whoosh
       @rack_app ||= begin
         @di.validate!
         register_mcp_tools
+        register_doc_routes if @config.docs_enabled?
         @router.freeze!
         inner = method(:handle_request)
         @middleware_stack.build(inner)
@@ -236,6 +246,32 @@ module Whoosh
           }
         )
       end
+    end
+
+    def register_doc_routes
+      generator = OpenAPI::Generator.new(**@openapi_config)
+
+      @router.routes.each do |route|
+        match = @router.match(route[:method], route[:path])
+        next unless match
+        handler = match[:handler]
+        generator.add_route(
+          method: route[:method], path: route[:path],
+          request_schema: handler[:request_schema],
+          response_schema: handler[:response_schema]
+        )
+      end
+
+      openapi_json = generator.to_json
+      @router.add("GET", "/openapi.json", {
+        block: -> (_req) { [200, { "content-type" => "application/json" }, [openapi_json]] },
+        request_schema: nil, response_schema: nil, middleware: []
+      })
+
+      @router.add("GET", "/docs", {
+        block: -> (_req) { OpenAPI::UI.rack_response("/openapi.json") },
+        request_schema: nil, response_schema: nil, middleware: []
+      })
     end
 
     def add_route(method, path, request: nil, response: nil, **metadata, &block)
@@ -395,6 +431,28 @@ module Whoosh
 
       def on_usage(&block)
         @tracker.on_usage(&block)
+      end
+    end
+
+    class OpenAPIConfigBuilder
+      def initialize
+        @config = {}
+      end
+
+      def title(val)
+        @config[:title] = val
+      end
+
+      def version(val)
+        @config[:version] = val
+      end
+
+      def description(val)
+        @config[:description] = val
+      end
+
+      def to_h
+        @config
       end
     end
   end
