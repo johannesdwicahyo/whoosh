@@ -5,6 +5,7 @@ require_relative "whoosh/version"
 module Whoosh
   autoload :App,                 "whoosh/app"
   autoload :Config,              "whoosh/config"
+  autoload :Database,            "whoosh/database"
   autoload :DependencyInjection, "whoosh/dependency_injection"
   autoload :Endpoint,            "whoosh/endpoint"
   autoload :Errors,              "whoosh/errors"
