@@ -5,7 +5,7 @@ require "set"
 
 module Whoosh
   class App
-    attr_reader :config, :logger, :plugin_registry
+    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl
 
     def initialize(root: Dir.pwd)
       @config = Config.load(root: root)
@@ -21,6 +21,10 @@ module Whoosh
       @group_prefix = ""
       @group_middleware = []
       @plugin_registry = Plugins::Registry.new
+      @authenticator = nil
+      @rate_limiter_instance = nil
+      @token_tracker = Auth::TokenTracker.new
+      @acl = Auth::AccessControl.new
 
       setup_default_middleware
     end
@@ -102,6 +106,29 @@ module Whoosh
       @plugin_registry.define_accessors(self)
     end
 
+    # --- Auth DSL ---
+
+    def auth(&block)
+      builder = AuthBuilder.new
+      builder.instance_eval(&block)
+      @authenticator = builder.build
+    end
+
+    def rate_limit(&block)
+      builder = RateLimitBuilder.new
+      builder.instance_eval(&block)
+      @rate_limiter_instance = builder.build
+    end
+
+    def token_tracking(&block)
+      builder = TokenTrackingBuilder.new(@token_tracker)
+      builder.instance_eval(&block)
+    end
+
+    def access_control(&block)
+      @acl.instance_eval(&block)
+    end
+
     # --- Endpoint loading ---
 
     def load_endpoints(dir)
@@ -178,6 +205,19 @@ module Whoosh
         request.instance_variable_set(:@body, result.data)
       end
 
+      # Authenticate if route requires it
+      if match[:metadata] && match[:metadata][:auth]
+        raise Errors::UnauthorizedError, "No authenticator configured" unless @authenticator
+        auth_result = @authenticator.authenticate(request)
+        request.env["whoosh.auth"] = auth_result
+      end
+
+      # Rate limit check
+      if @rate_limiter_instance
+        key = request.env.dig("whoosh.auth", :key) || request.env["REMOTE_ADDR"] || "anonymous"
+        @rate_limiter_instance.check!(key, request.path)
+      end
+
       # Call handler
       if handler[:endpoint_class]
         # Class-based endpoint
@@ -220,6 +260,74 @@ module Whoosh
         Response.json(result, status: 500)
       else
         Response.error(error, production: @config.production?)
+      end
+    end
+
+    # --- DSL Builders ---
+
+    class AuthBuilder
+      def initialize
+        @strategies = {}
+      end
+
+      def api_key(header: "X-Api-Key", keys: {})
+        @strategies[:api_key] = Auth::ApiKey.new(keys: keys, header: header)
+      end
+
+      def jwt(secret:, algorithm: :hs256, expiry: 3600)
+        @strategies[:jwt] = Auth::Jwt.new(secret: secret, algorithm: algorithm, expiry: expiry)
+      end
+
+      def build
+        @strategies.values.first
+      end
+    end
+
+    class RateLimitBuilder
+      def initialize
+        @default_limit = 60
+        @default_period = 60
+        @rules = []
+        @tiers = []
+        @on_store_failure = :fail_open
+      end
+
+      def default(limit:, period:)
+        @default_limit = limit
+        @default_period = period
+      end
+
+      def rule(path, limit:, period:)
+        @rules << { path: path, limit: limit, period: period }
+      end
+
+      def tier(name, limit: nil, period: nil, unlimited: false)
+        @tiers << { name: name, limit: limit, period: period, unlimited: unlimited }
+      end
+
+      def on_store_failure(strategy)
+        @on_store_failure = strategy
+      end
+
+      def build
+        limiter = Auth::RateLimiter.new(
+          default_limit: @default_limit,
+          default_period: @default_period,
+          on_store_failure: @on_store_failure
+        )
+        @rules.each { |r| limiter.rule(r[:path], limit: r[:limit], period: r[:period]) }
+        @tiers.each { |t| limiter.tier(t[:name], limit: t[:limit], period: t[:period], unlimited: t[:unlimited]) }
+        limiter
+      end
+    end
+
+    class TokenTrackingBuilder
+      def initialize(tracker)
+        @tracker = tracker
+      end
+
+      def on_usage(&block)
+        @tracker.on_usage(&block)
       end
     end
   end
