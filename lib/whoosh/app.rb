@@ -6,7 +6,7 @@ require "stringio"
 
 module Whoosh
   class App
-    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl
+    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager
 
     def initialize(root: Dir.pwd)
       @config = Config.load(root: root)
@@ -26,6 +26,8 @@ module Whoosh
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
       @acl = Auth::AccessControl.new
+      @mcp_server = MCP::Server.new
+      @mcp_manager = MCP::ClientManager.new
 
       setup_default_middleware
     end
@@ -130,6 +132,12 @@ module Whoosh
       @acl.instance_eval(&block)
     end
 
+    # --- MCP DSL ---
+
+    def mcp_client(name, command:, **options)
+      @mcp_manager.register(name, command: command, **options)
+    end
+
     # --- Streaming helpers ---
 
     def stream(type, &block)
@@ -184,6 +192,7 @@ module Whoosh
     def to_rack
       @rack_app ||= begin
         @di.validate!
+        register_mcp_tools
         @router.freeze!
         inner = method(:handle_request)
         @middleware_stack.build(inner)
@@ -197,6 +206,36 @@ module Whoosh
       @middleware_stack.use(Middleware::SecurityHeaders)
       @middleware_stack.use(Middleware::Cors)
       @middleware_stack.use(Middleware::RequestLogger, logger: @logger)
+    end
+
+    def register_mcp_tools
+      @router.routes.each do |route|
+        next unless route[:metadata] && route[:metadata][:mcp]
+
+        tool_name = "#{route[:method]} #{route[:path]}"
+        match = @router.match(route[:method], route[:path])
+        next unless match
+
+        handler_data = match[:handler]
+        app_ref = self
+
+        @mcp_server.register_tool(
+          name: tool_name,
+          description: tool_name,
+          input_schema: {},
+          handler: ->(params) {
+            env = Rack::MockRequest.env_for(route[:path], method: route[:method],
+              input: JSON.generate(params), "CONTENT_TYPE" => "application/json")
+            request = Request.new(env)
+
+            if handler_data[:endpoint_class]
+              handler_data[:endpoint_class].new.call(request)
+            elsif handler_data[:block]
+              app_ref.instance_exec(request, &handler_data[:block])
+            end
+          }
+        )
+      end
     end
 
     def add_route(method, path, request: nil, response: nil, **metadata, &block)
