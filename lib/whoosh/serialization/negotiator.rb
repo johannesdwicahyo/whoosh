@@ -4,7 +4,11 @@ module Whoosh
   module Serialization
     class Negotiator
       SERIALIZERS = {
-        "application/json" => -> { Json }
+        "application/json" => -> { Json },
+        "application/msgpack" => -> { Msgpack },
+        "application/x-msgpack" => -> { Msgpack },
+        "application/protobuf" => -> { Protobuf },
+        "application/x-protobuf" => -> { Protobuf }
       }.freeze
 
       def self.for_accept(accept_header)

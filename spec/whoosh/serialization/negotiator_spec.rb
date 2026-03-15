@@ -31,4 +31,25 @@ RSpec.describe Whoosh::Serialization::Negotiator do
       expect(deserializer).to eq(Whoosh::Serialization::Json)
     end
   end
+
+  describe ".for_accept with msgpack" do
+    it "returns Msgpack serializer for application/msgpack" do
+      serializer = Whoosh::Serialization::Negotiator.for_accept("application/msgpack")
+      expect(serializer).to eq(Whoosh::Serialization::Msgpack)
+    end
+  end
+
+  describe ".for_accept with protobuf" do
+    it "returns Protobuf serializer for application/protobuf" do
+      serializer = Whoosh::Serialization::Negotiator.for_accept("application/protobuf")
+      expect(serializer).to eq(Whoosh::Serialization::Protobuf)
+    end
+  end
+
+  describe ".for_content_type with msgpack" do
+    it "returns Msgpack for application/msgpack" do
+      deserializer = Whoosh::Serialization::Negotiator.for_content_type("application/msgpack")
+      expect(deserializer).to eq(Whoosh::Serialization::Msgpack)
+    end
+  end
 end
