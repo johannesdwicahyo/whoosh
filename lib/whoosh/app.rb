@@ -28,6 +28,7 @@ module Whoosh
       auto_register_cache
       auto_register_database
       auto_register_storage
+      auto_register_http
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -279,6 +280,10 @@ module Whoosh
 
     def auto_register_storage
       @di.provide(:storage) { Storage.build(@config.data) }
+    end
+
+    def auto_register_http
+      @di.provide(:http) { HTTP }
     end
 
     def auto_register_database
