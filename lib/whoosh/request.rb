@@ -47,6 +47,13 @@ module Whoosh
       @rack_request.content_type
     end
 
+    def logger
+      @logger ||= begin
+        base_logger = @env["whoosh.logger"]
+        base_logger&.with_context(request_id: id)
+      end
+    end
+
     private
 
     def parse_body
