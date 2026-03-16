@@ -4,6 +4,7 @@ require_relative "whoosh/version"
 
 module Whoosh
   autoload :App,                 "whoosh/app"
+  autoload :EnvLoader,           "whoosh/env_loader"
   autoload :Instrumentation,     "whoosh/instrumentation"
   autoload :Config,              "whoosh/config"
   autoload :Database,            "whoosh/database"
