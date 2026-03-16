@@ -40,7 +40,7 @@ module Whoosh
     end
 
     def id
-      @id ||= headers["X-Request-Id"] || SecureRandom.uuid
+      @id ||= @env["whoosh.request_id"] || headers["X-Request-Id"] || SecureRandom.uuid
     end
 
     def content_type
