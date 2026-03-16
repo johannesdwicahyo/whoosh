@@ -6,7 +6,7 @@ require "stringio"
 
 module Whoosh
   class App
-    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager
+    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager, :instrumentation
 
     def initialize(root: Dir.pwd)
       @config = Config.load(root: root)
@@ -27,6 +27,7 @@ module Whoosh
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
       @acl = Auth::AccessControl.new
+      @instrumentation = Instrumentation.new
       @mcp_server = MCP::Server.new
       @mcp_manager = MCP::ClientManager.new
       @openapi_config = { title: "Whoosh API", version: Whoosh::VERSION }
@@ -89,6 +90,12 @@ module Whoosh
       else
         @default_error_handler = block
       end
+    end
+
+    # --- Instrumentation ---
+
+    def on_event(event, &block)
+      @instrumentation.on(event, &block)
     end
 
     # --- Route listing ---
@@ -409,6 +416,7 @@ module Whoosh
     rescue Errors::HttpError => e
       Response.error(e)
     rescue => e
+      @instrumentation.emit(:error, { error: e, path: request&.path, method: request&.method })
       handle_error(e, request)
     end
 
