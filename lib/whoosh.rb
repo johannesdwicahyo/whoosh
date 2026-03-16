@@ -20,6 +20,7 @@ module Whoosh
   autoload :Shutdown,            "whoosh/shutdown"
   autoload :Test,                "whoosh/test"
   autoload :Types,               "whoosh/types"
+  autoload :Storage,             "whoosh/storage"
   autoload :UploadedFile,        "whoosh/uploaded_file"
   autoload :Performance,         "whoosh/performance"
 
