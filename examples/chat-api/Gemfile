@@ -1,6 +1,7 @@
 source "https://rubygems.org"
 
 gem "whoosh", path: "../../"
+gem "rackup"
 
 group :development do
   gem "rspec"

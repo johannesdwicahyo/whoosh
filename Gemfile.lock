@@ -1,12 +1,14 @@
 PATH
   remote: .
   specs:
-    whoosh (0.2.0)
+    whoosh (1.0.1)
       base64 (~> 0.2)
       dry-schema (~> 1.13)
       dry-types (~> 1.7)
       rack (~> 3.0)
+      rackup (~> 2.1)
       thor (~> 1.3)
+      webrick (~> 1.8)
 
 GEM
   remote: https://rubygems.org/
@@ -49,6 +51,8 @@ GEM
     rack (3.2.5)
     rack-test (2.2.0)
       rack (>= 1.3)
+    rackup (2.3.1)
+      rack (>= 3)
     rake (13.3.1)
     rspec (3.13.2)
       rspec-core (~> 3.13.0)
@@ -64,6 +68,7 @@ GEM
       rspec-support (~> 3.13.0)
     rspec-support (3.13.7)
     thor (1.5.0)
+    webrick (1.9.2)
     zeitwerk (2.7.5)
 
 PLATFORMS
@@ -93,6 +98,7 @@ CHECKSUMS
   logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
   rack (3.2.5) sha256=4cbd0974c0b79f7a139b4812004a62e4c60b145cba76422e288ee670601ed6d3
   rack-test (2.2.0) sha256=005a36692c306ac0b4a9350355ee080fd09ddef1148a5f8b2ac636c720f5c463
+  rackup (2.3.1)
   rake (13.3.1) sha256=8c9e89d09f66a26a01264e7e3480ec0607f0c497a861ef16063604b1b08eb19c
   rspec (3.13.2) sha256=206284a08ad798e61f86d7ca3e376718d52c0bc944626b2349266f239f820587
   rspec-core (3.13.6) sha256=a8823c6411667b60a8bca135364351dda34cd55e44ff94c4be4633b37d828b2d
@@ -100,7 +106,8 @@ CHECKSUMS
   rspec-mocks (3.13.8) sha256=086ad3d3d17533f4237643de0b5c42f04b66348c28bf6b9c2d3f4a3b01af1d47
   rspec-support (3.13.7) sha256=0640e5570872aafefd79867901deeeeb40b0c9875a36b983d85f54fb7381c47c
   thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
-  whoosh (0.2.0)
+  webrick (1.9.2)
+  whoosh (1.0.1)
   zeitwerk (2.7.5) sha256=d8da92128c09ea6ec62c949011b00ed4a20242b255293dd66bf41545398f73dd
 
 BUNDLED WITH

@@ -60,7 +60,7 @@ module Whoosh
       raw = @rack_request.body&.read
       return nil if raw.nil? || raw.empty?
 
-      @rack_request.body.rewind
+      @rack_request.body.rewind if @rack_request.body.respond_to?(:rewind)
 
       case content_type
       when /json/

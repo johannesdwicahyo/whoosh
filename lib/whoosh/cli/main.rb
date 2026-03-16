@@ -2,6 +2,8 @@
 
 require "thor"
 require "whoosh"
+require "rack"
+require "rack/builder"
 
 module Whoosh
   module CLI
@@ -12,16 +14,42 @@ module Whoosh
       end
 
       desc "server", "Start the Whoosh server"
-      option :port, aliases: "-p", type: :numeric, default: 9292
-      option :host, type: :string, default: "localhost"
+      option :port, aliases: "-p", type: :numeric, default: 9292, desc: "Port number"
+      option :host, aliases: "-h", type: :string, default: "localhost", desc: "Host to bind"
+      map "s" => :server
       def server
-        app_file = File.join(Dir.pwd, "config.ru")
-        unless File.exist?(app_file)
-          puts "Error: config.ru not found in #{Dir.pwd}"
+        app_file = File.join(Dir.pwd, "app.rb")
+        config_ru = File.join(Dir.pwd, "config.ru")
+
+        unless File.exist?(app_file) || File.exist?(config_ru)
+          puts "Error: No app.rb or config.ru found in #{Dir.pwd}"
           exit 1
         end
-        puts "Starting Whoosh server on #{options[:host]}:#{options[:port]}..."
-        exec("bundle exec rackup #{app_file} -p #{options[:port]} -o #{options[:host]}")
+
+        port = options[:port]
+        host = options[:host]
+
+        puts "=> Whoosh v#{Whoosh::VERSION} starting..."
+        puts "=> http://#{host}:#{port}"
+        puts "=> Ctrl-C to stop"
+        puts ""
+
+        # Load the app
+        if File.exist?(config_ru)
+          rack_app, _ = Rack::Builder.parse_file(config_ru)
+        else
+          require app_file
+          whoosh_app = ObjectSpace.each_object(Whoosh::App).first
+          unless whoosh_app
+            puts "Error: No Whoosh::App instance found in app.rb"
+            exit 1
+          end
+          rack_app = whoosh_app.to_rack
+        end
+
+        # Start server — try Falcon first, then Puma, then WEBrick
+        require "rackup"
+        Rackup::Server.start(app: rack_app, Port: port, Host: host)
       end
 
       desc "routes", "List all registered routes"
