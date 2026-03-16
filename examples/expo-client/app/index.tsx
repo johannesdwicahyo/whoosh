@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,78 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { API_URL, DEFAULT_API_KEY } from "./config";
+import { API_URL, DEFAULT_API_KEY } from "../config";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
+
+// SSE parser that works on all platforms (no ReadableStream needed)
+async function fetchSSE(
+  url: string,
+  options: RequestInit,
+  onChunk: (content: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void
+) {
+  try {
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      const error = await response.text();
+      try {
+        const parsed = JSON.parse(error);
+        onError(parsed.error || "Request failed");
+      } catch {
+        onError(`HTTP ${response.status}`);
+      }
+      return;
+    }
+
+    // For web: use ReadableStream if available
+    if (Platform.OS === "web" && response.body?.getReader) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value, { stream: true });
+        parseSSELines(text, onChunk);
+      }
+      onDone();
+      return;
+    }
+
+    // For React Native: read full response text then parse
+    // (RN doesn't support streaming fetch, but the response is small enough)
+    const text = await response.text();
+    parseSSELines(text, onChunk);
+    onDone();
+  } catch (err: any) {
+    onError(err.message || "Connection error");
+  }
+}
+
+function parseSSELines(text: string, onChunk: (content: string) => void) {
+  const lines = text.split("\n");
+  for (const line of lines) {
+    if (line.startsWith("data: ") && line !== "data: [DONE]") {
+      try {
+        const data = JSON.parse(line.slice(6));
+        const content = data.choices?.[0]?.delta?.content;
+        if (content) onChunk(content);
+      } catch {
+        // Skip malformed lines
+      }
+    }
+  }
+}
 
 export default function ChatScreen() {
   const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
@@ -23,14 +87,15 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState<"ok" | "down" | "checking">("checking");
   const scrollRef = useRef<ScrollView>(null);
+  const contentRef = useRef("");
 
   // Check health on mount
-  useState(() => {
+  useEffect(() => {
     fetch(`${API_URL}/health`)
       .then((r) => r.json())
       .then((data) => setHealth(data.status === "ok" ? "ok" : "down"))
       .catch(() => setHealth("down"));
-  });
+  }, []);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || loading) return;
@@ -39,68 +104,46 @@ export default function ChatScreen() {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setLoading(true);
+    contentRef.current = "";
 
-    try {
-      const response = await fetch(`${API_URL}/chat/stream`, {
+    // Add empty assistant message
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+    await fetchSSE(
+      `${API_URL}/chat/stream`,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Api-Key": apiKey,
         },
         body: JSON.stringify({ message: userMsg }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: `Error: ${error.error}` },
-        ]);
-        return;
+      },
+      // onChunk
+      (content) => {
+        contentRef.current += content;
+        const current = contentRef.current;
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: current };
+          return updated;
+        });
+      },
+      // onDone
+      () => setLoading(false),
+      // onError
+      (error) => {
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            role: "assistant",
+            content: `Error: ${error}`,
+          };
+          return updated;
+        });
+        setLoading(false);
       }
-
-      // Read SSE stream
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
-
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
-      while (reader) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ") && line !== "data: [DONE]") {
-            try {
-              const data = JSON.parse(line.slice(6));
-              const content = data.choices?.[0]?.delta?.content || "";
-              assistantContent += content;
-              setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                  role: "assistant",
-                  content: assistantContent,
-                };
-                return updated;
-              });
-            } catch {
-              // Skip malformed lines
-            }
-          }
-        }
-      }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Connection error" },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    );
   }, [input, apiKey, loading]);
 
   return (
@@ -124,9 +167,9 @@ export default function ChatScreen() {
         />
         <Text style={styles.healthText}>
           {health === "ok"
-            ? "API Connected"
+            ? `API Connected (${API_URL})`
             : health === "down"
-            ? "API Offline"
+            ? `API Offline (${API_URL})`
             : "Checking..."}
         </Text>
       </View>
@@ -151,6 +194,14 @@ export default function ChatScreen() {
           scrollRef.current?.scrollToEnd({ animated: true })
         }
       >
+        {messages.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Whoosh Chat</Text>
+            <Text style={styles.emptySubtitle}>
+              Send a message to start chatting
+            </Text>
+          </View>
+        )}
         {messages.map((msg, i) => (
           <View
             key={i}
@@ -159,10 +210,19 @@ export default function ChatScreen() {
               msg.role === "user" ? styles.userBubble : styles.assistantBubble,
             ]}
           >
-            <Text style={styles.messageText}>{msg.content}</Text>
+            <Text
+              style={[
+                styles.messageText,
+                msg.role === "user" && styles.userText,
+              ]}
+            >
+              {msg.content || "..."}
+            </Text>
           </View>
         ))}
-        {loading && <ActivityIndicator style={{ marginTop: 8 }} color="#818cf8" />}
+        {loading && (
+          <ActivityIndicator style={{ marginTop: 8 }} color="#818cf8" />
+        )}
       </ScrollView>
 
       {/* Input */}
@@ -175,6 +235,7 @@ export default function ChatScreen() {
           placeholderTextColor="#666"
           onSubmitEditing={sendMessage}
           editable={!loading}
+          returnKeyType="send"
         />
         <TouchableOpacity
           style={[styles.sendButton, loading && styles.sendButtonDisabled]}
@@ -213,13 +274,20 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#e2e8f0",
     fontSize: 12,
-    fontFamily: "monospace",
     backgroundColor: "#1e293b",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   messages: { flex: 1, padding: 16 },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
+  emptyTitle: { color: "#e2e8f0", fontSize: 24, fontWeight: "bold" },
+  emptySubtitle: { color: "#64748b", fontSize: 14, marginTop: 8 },
   messageBubble: {
     maxWidth: "80%",
     padding: 12,
@@ -237,6 +305,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   messageText: { color: "#e2e8f0", fontSize: 15, lineHeight: 22 },
+  userText: { color: "#ffffff" },
   inputRow: {
     flexDirection: "row",
     padding: 12,
