@@ -35,6 +35,28 @@ module Whoosh
         html = swagger_html(spec_url)
         [200, { "content-type" => "text/html", "content-length" => html.bytesize.to_s }, [html]]
       end
+
+      def self.redoc_html(spec_url)
+        <<~HTML
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>API Docs - ReDoc</title>
+          </head>
+          <body>
+            <redoc spec-url="#{spec_url}"></redoc>
+            <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+          </body>
+          </html>
+        HTML
+      end
+
+      def self.redoc_response(spec_url)
+        html = redoc_html(spec_url)
+        [200, { "content-type" => "text/html", "content-length" => html.bytesize.to_s }, [html]]
+      end
     end
   end
 end

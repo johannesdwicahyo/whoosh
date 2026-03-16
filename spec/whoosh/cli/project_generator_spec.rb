@@ -56,5 +56,12 @@ RSpec.describe Whoosh::CLI::ProjectGenerator do
         expect(content).to include("whoosh")
       end
     end
+
+    it "generates plugins.yml" do
+      Dir.mktmpdir do |dir|
+        Whoosh::CLI::ProjectGenerator.create("myapp", root: dir)
+        expect(File.exist?(File.join(dir, "myapp", "config", "plugins.yml"))).to be true
+      end
+    end
   end
 end

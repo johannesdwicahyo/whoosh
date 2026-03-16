@@ -18,6 +18,7 @@ module Whoosh
         write(dir, "Gemfile", gemfile(full: full))
         write(dir, "Rakefile", "require \"rspec/core/rake_task\"\nRSpec::Core::RakeTask.new(:spec)\ntask default: :spec\n")
         write(dir, "config/app.yml", app_yml(name))
+        write(dir, "config/plugins.yml", plugins_yml_template)
         write(dir, "endpoints/health.rb", health_endpoint)
         write(dir, "schemas/health.rb", health_schema)
         write(dir, "test/test_helper.rb", test_helper)
@@ -85,6 +86,23 @@ module Whoosh
 
         def test_helper
           "# frozen_string_literal: true\n\nrequire \"rack/test\"\nrequire_relative \"../app\"\n\nRSpec.configure do |config|\n  config.include Rack::Test::Methods\nend\n"
+        end
+
+        def plugins_yml_template
+          <<~YAML
+            # Plugin configuration
+            # Uncomment and configure as needed:
+            #
+            # lingua:
+            #   languages: [en, id, ms]
+            #
+            # guardrails:
+            #   language_check:
+            #     enabled: true
+            #
+            # ner:
+            #   enabled: false
+          YAML
         end
       end
     end
