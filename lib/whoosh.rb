@@ -16,6 +16,7 @@ module Whoosh
   autoload :Router,              "whoosh/router"
   autoload :Schema,              "whoosh/schema"
   autoload :Shutdown,            "whoosh/shutdown"
+  autoload :Test,                "whoosh/test"
   autoload :Types,               "whoosh/types"
   autoload :Performance,         "whoosh/performance"
 
