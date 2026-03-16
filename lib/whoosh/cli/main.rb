@@ -87,6 +87,45 @@ module Whoosh
         end
       end
 
+      desc "db SUBCOMMAND", "Database commands"
+      subcommand "db", Class.new(Thor) {
+        namespace "db"
+
+        desc "migrate", "Run pending migrations"
+        def migrate
+          require_app!
+          db = find_db
+          Sequel::Migrator.run(db, "db/migrations")
+          puts "Migrations complete."
+        end
+
+        desc "rollback", "Rollback last migration"
+        def rollback
+          require_app!
+          db = find_db
+          Sequel::Migrator.run(db, "db/migrations", target: 0)
+          puts "Rollback complete."
+        end
+
+        desc "status", "Show migration status"
+        def status
+          puts "Migration files in db/migrations/:"
+          Dir.glob("db/migrations/*.rb").sort.each { |f| puts "  #{File.basename(f)}" }
+        end
+
+        private
+
+        def require_app!
+          require File.join(Dir.pwd, "app") if File.exist?(File.join(Dir.pwd, "app.rb"))
+        end
+
+        def find_db
+          require "sequel"
+          url = ENV["DATABASE_URL"] || "sqlite://db/development.sqlite3"
+          Sequel.connect(url)
+        end
+      }
+
       desc "new NAME", "Create a new Whoosh project"
       option :minimal, type: :boolean, default: false
       option :full, type: :boolean, default: false

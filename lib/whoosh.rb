@@ -36,7 +36,8 @@ module Whoosh
     autoload :Protocol,      "whoosh/mcp/protocol"
 
     module Transport
-      autoload :SSE, "whoosh/mcp/transport/sse"
+      autoload :SSE,   "whoosh/mcp/transport/sse"
+      autoload :Stdio, "whoosh/mcp/transport/stdio"
     end
   end
 

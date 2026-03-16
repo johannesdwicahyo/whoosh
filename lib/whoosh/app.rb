@@ -6,7 +6,7 @@ require "stringio"
 
 module Whoosh
   class App
-    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager, :instrumentation
+    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager, :instrumentation, :shutdown
 
     def initialize(root: Dir.pwd)
       @config = Config.load(root: root)
@@ -21,6 +21,7 @@ module Whoosh
       )
       @group_prefix = ""
       @group_middleware = []
+      @group_metadata = {}
       @plugin_registry = Plugins::Registry.new
       load_plugin_config
       @authenticator = nil
@@ -31,6 +32,7 @@ module Whoosh
       @mcp_server = MCP::Server.new
       @mcp_manager = MCP::ClientManager.new
       @openapi_config = { title: "Whoosh API", version: Whoosh::VERSION }
+      @shutdown = Shutdown.new(logger: @logger)
 
       setup_default_middleware
     end
@@ -63,17 +65,20 @@ module Whoosh
 
     # --- Route groups ---
 
-    def group(prefix, middleware: [], &block)
+    def group(prefix, middleware: [], **metadata, &block)
       previous_prefix = @group_prefix
       previous_middleware = @group_middleware
+      previous_metadata = @group_metadata
 
       @group_prefix = "#{previous_prefix}#{prefix}"
       @group_middleware = previous_middleware + middleware
+      @group_metadata = previous_metadata.merge(metadata)
 
       instance_eval(&block)
     ensure
       @group_prefix = previous_prefix
       @group_middleware = previous_middleware
+      @group_metadata = previous_metadata
     end
 
     # --- Dependency injection ---
@@ -247,7 +252,11 @@ module Whoosh
         register_doc_routes if @config.docs_enabled?
         @router.freeze!
         inner = method(:handle_request)
-        @middleware_stack.build(inner)
+        app = @middleware_stack.build(inner)
+        @shutdown.register { @di.close_all }
+        @shutdown.register { @mcp_manager.shutdown_all }
+        @shutdown.install_signal_handlers!
+        app
       end
     end
 
@@ -341,13 +350,14 @@ module Whoosh
 
     def add_route(method, path, request: nil, response: nil, **metadata, &block)
       full_path = "#{@group_prefix}#{path}"
+      merged_metadata = @group_metadata.merge(metadata)
       handler = {
         block: block,
         request_schema: request,
         response_schema: response,
         middleware: @group_middleware.dup
       }
-      @router.add(method, full_path, handler, **metadata)
+      @router.add(method, full_path, handler, **merged_metadata)
     end
 
     def handle_request(env)
