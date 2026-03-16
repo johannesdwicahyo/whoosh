@@ -53,4 +53,49 @@ RSpec.describe Whoosh::CLI::Generators do
       end
     end
   end
+
+  describe ".schema with fields" do
+    it "generates schema with field definitions" do
+      Dir.mktmpdir do |dir|
+        Whoosh::CLI::Generators.schema("user", ["name:string", "email:string", "age:integer"], root: dir)
+        content = File.read(File.join(dir, "schemas", "user.rb"))
+        expect(content).to include("field :name, String")
+        expect(content).to include("field :email, String")
+        expect(content).to include("field :age, Integer")
+      end
+    end
+  end
+
+  describe ".plugin" do
+    it "generates plugin boilerplate" do
+      Dir.mktmpdir do |dir|
+        Whoosh::CLI::Generators.plugin("my-tool", root: dir)
+        expect(File.exist?(File.join(dir, "lib", "my-tool_plugin.rb"))).to be true
+        content = File.read(File.join(dir, "lib", "my-tool_plugin.rb"))
+        expect(content).to include("Whoosh::Plugins::Base")
+        expect(content).to include("accessor_name :my_tool")
+      end
+    end
+  end
+
+  describe ".proto" do
+    it "generates .proto file" do
+      Dir.mktmpdir do |dir|
+        Whoosh::CLI::Generators.proto("ChatRequest", root: dir)
+        expect(File.exist?(File.join(dir, "protos", "chatrequest.proto"))).to be true
+        content = File.read(File.join(dir, "protos", "chatrequest.proto"))
+        expect(content).to include("proto3")
+        expect(content).to include("message ChatRequest")
+      end
+    end
+  end
+
+  describe ".model with test generation" do
+    it "generates model test file" do
+      Dir.mktmpdir do |dir|
+        Whoosh::CLI::Generators.model("post", ["title:string"], root: dir)
+        expect(File.exist?(File.join(dir, "test", "models", "post_test.rb"))).to be true
+      end
+    end
+  end
 end
