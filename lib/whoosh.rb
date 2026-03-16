@@ -32,6 +32,10 @@ module Whoosh
     autoload :Client,        "whoosh/mcp/client"
     autoload :ClientManager, "whoosh/mcp/client_manager"
     autoload :Protocol,      "whoosh/mcp/protocol"
+
+    module Transport
+      autoload :SSE, "whoosh/mcp/transport/sse"
+    end
   end
 
   module Middleware
