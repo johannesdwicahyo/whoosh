@@ -1,0 +1,11 @@
+app:
+  name: "Chat API"
+  port: 9292
+  host: localhost
+
+logging:
+  level: info
+  format: json
+
+docs:
+  enabled: true
