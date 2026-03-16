@@ -22,7 +22,7 @@ module Whoosh
         write(dir, "endpoints/health.rb", health_endpoint)
         write(dir, "schemas/health.rb", health_schema)
         write(dir, "test/test_helper.rb", test_helper)
-        write(dir, ".env.example", "# WHOOSH_PORT=9292\n# WHOOSH_ENV=development\n# DATABASE_URL=sqlite://db/development.sqlite3\n")
+        write(dir, ".env.example", env_example_template)
         puts "Created #{name}/ — run `cd #{name} && bundle install && whoosh server`"
       end
 
@@ -63,7 +63,35 @@ module Whoosh
         end
 
         def app_yml(name)
-          "app:\n  name: \"#{name.capitalize} API\"\n  port: 9292\n  host: localhost\n\nlogging:\n  level: info\n  format: json\n\ndocs:\n  enabled: true\n"
+          app_yml_template(name)
+        end
+
+        def env_example_template
+          "# WHOOSH_PORT=9292\n# WHOOSH_ENV=development\n# DATABASE_URL=sqlite://db/development.sqlite3\n# REDIS_URL=redis://localhost:6379\n"
+        end
+
+        def app_yml_template(name)
+          <<~YAML
+            app:
+              name: "#{name.capitalize} API"
+              port: 9292
+              host: localhost
+
+            database:
+              url: <%= ENV.fetch("DATABASE_URL", "sqlite://db/development.sqlite3") %>
+              max_connections: 10
+
+            cache:
+              store: memory
+              default_ttl: 300
+
+            logging:
+              level: info
+              format: json
+
+            docs:
+              enabled: true
+          YAML
         end
 
         def health_endpoint
