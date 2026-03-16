@@ -2,13 +2,15 @@
 
 module Whoosh
   class Response
+    JSON_HEADERS = { "content-type" => "application/json" }.freeze
+
     def self.json(data, status: 200, headers: {})
       body = Serialization::Json.encode(data)
-      response_headers = {
-        "content-type" => "application/json",
-        "content-length" => body.bytesize.to_s
-      }.merge(headers)
-
+      response_headers = if headers.empty?
+        { "content-type" => "application/json", "content-length" => body.bytesize.to_s }
+      else
+        { "content-type" => "application/json", "content-length" => body.bytesize.to_s }.merge(headers)
+      end
       [status, response_headers, [body]]
     end
 

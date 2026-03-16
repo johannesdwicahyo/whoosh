@@ -19,7 +19,9 @@ module Whoosh
 
       def call(env)
         status, headers, body = @app.call(env)
-        [status, HEADERS.merge(headers), body]
+        headers = headers.dup if headers.frozen?
+        HEADERS.each { |k, v| headers[k] ||= v }
+        [status, headers, body]
       end
     end
   end
