@@ -22,6 +22,7 @@ module Whoosh
       @group_prefix = ""
       @group_middleware = []
       @plugin_registry = Plugins::Registry.new
+      load_plugin_config
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -244,6 +245,23 @@ module Whoosh
     end
 
     private
+
+    def load_plugin_config
+      root = @config.instance_variable_get(:@root)
+      path = File.join(root, "config", "plugins.yml")
+      return unless File.exist?(path)
+
+      require "yaml"
+      data = YAML.safe_load(File.read(path), permitted_classes: [Symbol]) || {}
+      data.each do |accessor_name, config|
+        name = accessor_name.to_sym
+        if config.is_a?(Hash) && config["enabled"] == false
+          @plugin_registry.disable(name)
+        elsif config.is_a?(Hash)
+          @plugin_registry.configure(name, config.reject { |k, _| k == "enabled" })
+        end
+      end
+    end
 
     def setup_default_middleware
       @middleware_stack.use(Middleware::RequestLimit)
