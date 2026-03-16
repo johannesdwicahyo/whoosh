@@ -25,6 +25,7 @@ module Whoosh
       @group_metadata = {}
       @plugin_registry = Plugins::Registry.new
       load_plugin_config
+      auto_register_cache
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -269,6 +270,10 @@ module Whoosh
     end
 
     private
+
+    def auto_register_cache
+      @di.provide(:cache) { Cache.build(@config.data) }
+    end
 
     def load_plugin_config
       root = @config.instance_variable_get(:@root)
