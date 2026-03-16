@@ -71,9 +71,14 @@ module Whoosh
       end
 
       def secure_compare(a, b)
-        return false unless a.bytesize == b.bytesize
-        l = a.unpack("C*")
-        r = b.unpack("C*")
+        # Use HMAC-based comparison to prevent length oracle attacks.
+        # Comparing raw strings leaks whether lengths differ; comparing their
+        # HMAC digests normalises to a fixed size before the constant-time XOR.
+        digest = OpenSSL::Digest.new("SHA256")
+        hmac_a = OpenSSL::HMAC.digest(digest, @secret, a)
+        hmac_b = OpenSSL::HMAC.digest(digest, @secret, b)
+        l = hmac_a.unpack("C*")
+        r = hmac_b.unpack("C*")
         result = 0
         l.zip(r) { |x, y| result |= x ^ y }
         result.zero?
