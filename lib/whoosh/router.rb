@@ -13,10 +13,13 @@ module Whoosh
       end
     end
 
+    EMPTY_PARAMS = {}.freeze
+
     def initialize
       @root = TrieNode.new
       @routes = []
       @frozen = false
+      @static_cache = nil
     end
 
     def add(method, path, handler, **metadata)
@@ -41,6 +44,15 @@ module Whoosh
     end
 
     def match(method, path)
+      # Fast path: static route cache (O(1))
+      if @static_cache
+        cached = @static_cache["#{method}:#{path}"]
+        if cached
+          return { handler: cached[:handler], params: EMPTY_PARAMS, metadata: cached[:metadata] }
+        end
+      end
+
+      # Slow path: trie walk for param routes
       # Trailing slash (e.g. "/health/") is treated as a distinct path from "/health"
       return nil if path.end_with?("/") && path != "/"
 
@@ -62,7 +74,7 @@ module Whoosh
       entry = node.handlers[method]
       return nil unless entry
 
-      { handler: entry[:handler], params: params, metadata: entry[:metadata] }
+      { handler: entry[:handler], params: params.empty? ? EMPTY_PARAMS : params, metadata: entry[:metadata] }
     end
 
     def routes
@@ -73,9 +85,25 @@ module Whoosh
 
     def freeze!
       @frozen = true
+      build_static_cache
     end
 
     private
+
+    def build_static_cache
+      @static_cache = {}
+      @routes.each do |route|
+        next if route[:path].include?(":")
+        # Walk trie to find the entry
+        node = @root
+        split_path(route[:path]).each do |seg|
+          node = node.children[seg]
+          break unless node
+        end
+        entry = node&.handlers&.[](route[:method])
+        @static_cache["#{route[:method]}:#{route[:path]}"] = entry if entry
+      end
+    end
 
     def split_path(path)
       path.split("/").reject(&:empty?)
