@@ -9,6 +9,7 @@ module Whoosh
     attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager, :instrumentation, :shutdown
 
     def initialize(root: Dir.pwd)
+      EnvLoader.load(root)
       @config = Config.load(root: root)
       @router = Router.new
       @middleware_stack = Middleware::Stack.new
