@@ -40,6 +40,7 @@ module Whoosh
     autoload :RequestLogger,   "whoosh/middleware/request_logger"
     autoload :SecurityHeaders, "whoosh/middleware/security_headers"
     autoload :RequestLimit,    "whoosh/middleware/request_limit"
+    autoload :PluginHooks,     "whoosh/middleware/plugin_hooks"
   end
 
   module Streaming
