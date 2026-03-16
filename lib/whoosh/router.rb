@@ -41,6 +41,9 @@ module Whoosh
     end
 
     def match(method, path)
+      # Trailing slash (e.g. "/health/") is treated as a distinct path from "/health"
+      return nil if path.end_with?("/") && path != "/"
+
       node = @root
       params = {}
       segments = split_path(path)
