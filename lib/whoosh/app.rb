@@ -281,10 +281,16 @@ module Whoosh
         handler_data = match[:handler]
         app_ref = self
 
+        input_schema = if handler_data[:request_schema]
+          OpenAPI::SchemaConverter.convert(handler_data[:request_schema])
+        else
+          {}
+        end
+
         @mcp_server.register_tool(
           name: tool_name,
           description: tool_name,
-          input_schema: {},
+          input_schema: input_schema,
           handler: ->(params) {
             env = Rack::MockRequest.env_for(route[:path], method: route[:method],
               input: JSON.generate(params), "CONTENT_TYPE" => "application/json")
