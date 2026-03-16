@@ -18,6 +18,7 @@ module Whoosh
         status, headers, body = @app.call(env)
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round(2)
 
+        headers = headers.dup
         headers["x-request-id"] = request_id
 
         @logger.info("request_complete",
