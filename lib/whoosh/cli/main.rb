@@ -99,16 +99,16 @@ module Whoosh
       subcommand "generate", Class.new(Thor) {
         namespace "generate"
 
-        desc "endpoint NAME", "Generate endpoint with schema and test"
-        def endpoint(name)
+        desc "endpoint NAME [FIELDS...]", "Generate endpoint with schema and test"
+        def endpoint(name, *fields)
           require "whoosh/cli/generators"
-          Whoosh::CLI::Generators.endpoint(name)
+          Whoosh::CLI::Generators.endpoint(name, fields)
         end
 
-        desc "schema NAME", "Generate a schema file"
-        def schema(name)
+        desc "schema NAME [FIELDS...]", "Generate a schema file"
+        def schema(name, *fields)
           require "whoosh/cli/generators"
-          Whoosh::CLI::Generators.schema(name)
+          Whoosh::CLI::Generators.schema(name, fields)
         end
 
         desc "model NAME [FIELDS...]", "Generate model with migration"
@@ -121,6 +121,18 @@ module Whoosh
         def migration(name)
           require "whoosh/cli/generators"
           Whoosh::CLI::Generators.migration(name)
+        end
+
+        desc "plugin NAME", "Generate plugin boilerplate"
+        def plugin(name)
+          require "whoosh/cli/generators"
+          Whoosh::CLI::Generators.plugin(name)
+        end
+
+        desc "proto NAME", "Generate .proto file"
+        def proto(name)
+          require "whoosh/cli/generators"
+          Whoosh::CLI::Generators.proto(name)
         end
       }
     end
