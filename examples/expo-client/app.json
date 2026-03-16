@@ -4,11 +4,19 @@
     "slug": "whoosh-client",
     "version": "1.0.0",
     "scheme": "whoosh-client",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "web": {
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }
