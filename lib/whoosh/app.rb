@@ -27,6 +27,7 @@ module Whoosh
       load_plugin_config
       auto_register_cache
       auto_register_database
+      auto_register_storage
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -276,6 +277,10 @@ module Whoosh
       @di.provide(:cache) { Cache.build(@config.data) }
     end
 
+    def auto_register_storage
+      @di.provide(:storage) { Storage.build(@config.data) }
+    end
+
     def auto_register_database
       db_config = Database.config_from(@config.data)
       return unless db_config
@@ -396,6 +401,7 @@ module Whoosh
     def handle_request(env)
       request = Request.new(env)
       env["whoosh.logger"] = @logger
+      env["whoosh.storage"] = @di.resolve(:storage) rescue nil
       match = @router.match(request.method, request.path)
 
       return Response.not_found unless match

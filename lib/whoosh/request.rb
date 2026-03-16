@@ -54,6 +54,17 @@ module Whoosh
       end
     end
 
+    def files
+      @files ||= begin
+        storage = @env["whoosh.storage"]
+        form_data = @rack_request.params
+        form_data.each_with_object({}) do |(key, value), hash|
+          next unless value.is_a?(Hash) && value[:tempfile]
+          hash[key] = UploadedFile.new(value, storage: storage)
+        end
+      end
+    end
+
     private
 
     def parse_body
