@@ -26,6 +26,7 @@ module Whoosh
       @plugin_registry = Plugins::Registry.new
       load_plugin_config
       auto_register_cache
+      auto_register_database
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -273,6 +274,18 @@ module Whoosh
 
     def auto_register_cache
       @di.provide(:cache) { Cache.build(@config.data) }
+    end
+
+    def auto_register_database
+      db_config = Database.config_from(@config.data)
+      return unless db_config
+
+      unless Database.available?
+        @logger.warn("database_unavailable", message: "database config found but sequel gem not installed")
+        return
+      end
+
+      @di.provide(:db) { Database.connect_from_config(@config.data, logger: @logger) }
     end
 
     def load_plugin_config

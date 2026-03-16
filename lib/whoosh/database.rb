@@ -23,6 +23,13 @@ module Whoosh
       db
     end
 
+    def self.connect_from_config(config_data, logger: nil)
+      db_config = config_from(config_data)
+      return nil unless db_config
+      ensure_available!
+      connect(db_config[:url], max_connections: db_config[:max_connections], log_level: db_config[:log_level])
+    end
+
     def self.config_from(config_data)
       db_config = config_data["database"]
       return nil unless db_config && db_config["url"]
