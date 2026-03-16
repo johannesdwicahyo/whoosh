@@ -28,6 +28,22 @@ module Whoosh
       log(:error, event, **data)
     end
 
+    def with_context(**context)
+      ScopedLogger.new(self, **context)
+    end
+
+    class ScopedLogger
+      def initialize(logger, **context)
+        @logger = logger
+        @context = context
+      end
+
+      def debug(event, **data) = @logger.debug(event, **@context, **data)
+      def info(event, **data) = @logger.info(event, **@context, **data)
+      def warn(event, **data) = @logger.warn(event, **@context, **data)
+      def error(event, **data) = @logger.error(event, **@context, **data)
+    end
+
     private
 
     def log(level, event, **data)

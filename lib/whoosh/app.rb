@@ -287,6 +287,7 @@ module Whoosh
 
     def handle_request(env)
       request = Request.new(env)
+      env["whoosh.logger"] = @logger
       match = @router.match(request.method, request.path)
 
       return Response.not_found unless match
