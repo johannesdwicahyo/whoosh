@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    whoosh (0.1.0)
+    whoosh (0.2.0)
       base64 (~> 0.2)
       dry-schema (~> 1.13)
       dry-types (~> 1.7)
@@ -12,6 +12,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     base64 (0.3.0)
+    benchmark-ips (2.14.0)
     bigdecimal (4.0.1)
     concurrent-ruby (1.3.6)
     diff-lcs (1.6.2)
@@ -70,6 +71,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  benchmark-ips (~> 2.13)
   rack-test (~> 2.1)
   rake (~> 13.0)
   rspec (~> 3.13)
@@ -77,6 +79,7 @@ DEPENDENCIES
 
 CHECKSUMS
   base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
+  benchmark-ips (2.14.0) sha256=b72bc8a65d525d5906f8cd94270dccf73452ee3257a32b89fbd6684d3e8a9b1d
   bigdecimal (4.0.1) sha256=8b07d3d065a9f921c80ceaea7c9d4ae596697295b584c296fe599dd0ad01c4a7
   concurrent-ruby (1.3.6) sha256=6b56837e1e7e5292f9864f34b69c5a2cbc75c0cf5338f1ce9903d10fa762d5ab
   diff-lcs (1.6.2) sha256=9ae0d2cba7d4df3075fe8cd8602a8604993efc0dfa934cff568969efb1909962
@@ -97,7 +100,7 @@ CHECKSUMS
   rspec-mocks (3.13.8) sha256=086ad3d3d17533f4237643de0b5c42f04b66348c28bf6b9c2d3f4a3b01af1d47
   rspec-support (3.13.7) sha256=0640e5570872aafefd79867901deeeeb40b0c9875a36b983d85f54fb7381c47c
   thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
-  whoosh (0.1.0)
+  whoosh (0.2.0)
   zeitwerk (2.7.5) sha256=d8da92128c09ea6ec62c949011b00ed4a20242b255293dd66bf41545398f73dd
 
 BUNDLED WITH
