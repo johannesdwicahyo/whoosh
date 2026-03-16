@@ -147,6 +147,40 @@ module Whoosh
       @openapi_config.merge!(builder.to_h)
     end
 
+    # --- Health check ---
+
+    def health_check(path: "/healthz", &block)
+      probes = {}
+      if block
+        builder = HealthCheckBuilder.new
+        builder.instance_eval(&block)
+        probes = builder.probes
+      end
+
+      get path do
+        checks = {}
+        all_ok = true
+        probes.each do |name, probe_block|
+          begin
+            probe_block.call
+            checks[name.to_s] = "ok"
+          rescue => e
+            checks[name.to_s] = "fail: #{e.message}"
+            all_ok = false
+          end
+        end
+
+        result = { status: all_ok ? "ok" : "degraded", version: Whoosh::VERSION }
+        result[:checks] = checks unless checks.empty?
+
+        if all_ok
+          result
+        else
+          [503, { "content-type" => "application/json" }, [Serialization::Json.encode(result)]]
+        end
+      end
+    end
+
     # --- Streaming helpers ---
 
     def stream(type, &block)
@@ -432,6 +466,16 @@ module Whoosh
 
       def on_usage(&block)
         @tracker.on_usage(&block)
+      end
+    end
+
+    class HealthCheckBuilder
+      attr_reader :probes
+      def initialize
+        @probes = {}
+      end
+      def probe(name, &block)
+        @probes[name] = block
       end
     end
 
