@@ -32,6 +32,7 @@ module Whoosh
       @mcp_server = MCP::Server.new
       @mcp_manager = MCP::ClientManager.new
       @openapi_config = { title: "Whoosh API", version: Whoosh::VERSION }
+      @docs_config = {}
       @shutdown = Shutdown.new(logger: @logger)
 
       setup_default_middleware
@@ -150,6 +151,12 @@ module Whoosh
 
     def mcp_client(name, command:, **options)
       @mcp_manager.register(name, command: command, **options)
+    end
+
+    # --- Docs DSL ---
+
+    def docs(enabled: true, redoc: false)
+      @docs_config = { enabled: enabled, redoc: redoc }
     end
 
     # --- OpenAPI DSL ---
@@ -346,6 +353,13 @@ module Whoosh
         block: -> (_req) { OpenAPI::UI.rack_response("/openapi.json") },
         request_schema: nil, response_schema: nil, middleware: []
       })
+
+      if @docs_config && @docs_config[:redoc]
+        @router.add("GET", "/redoc", {
+          block: -> (_req) { OpenAPI::UI.redoc_response("/openapi.json") },
+          request_schema: nil, response_schema: nil, middleware: []
+        })
+      end
     end
 
     def add_route(method, path, request: nil, response: nil, **metadata, &block)
@@ -414,6 +428,17 @@ module Whoosh
           instance_exec(request, &block)
         else
           instance_exec(&block)
+        end
+      end
+
+      # Validate response schema (development only)
+      if handler[:response_schema] && !@config.production?
+        response_result = handler[:response_schema].validate(result)
+        unless response_result.success?
+          @logger.warn("response_validation_failed",
+            path: request.path,
+            errors: response_result.errors.map { |e| e[:message] }
+          )
         end
       end
 
