@@ -15,6 +15,7 @@ module Whoosh
   autoload :Router,              "whoosh/router"
   autoload :Schema,              "whoosh/schema"
   autoload :Types,               "whoosh/types"
+  autoload :Performance,         "whoosh/performance"
 
   module Auth
     autoload :ApiKey,         "whoosh/auth/api_key"
