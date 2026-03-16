@@ -43,7 +43,7 @@ module Whoosh
         unless result.success?
           errors = result.errors.to_h.flat_map do |field_name, messages|
             messages.map do |msg|
-              { field: field_name, message: msg, value: data[field_name] || data[field_name.to_s] }
+              { field: field_name, message: msg, value: input[field_name] || input[field_name.to_s] }
             end
           end
           return Result.new(data: nil, errors: errors)
