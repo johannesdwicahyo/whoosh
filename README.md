@@ -347,12 +347,12 @@ whoosh db status              # migration status
 |-----------|----------|--------|---------|
 | Fastify | Node.js 22 | built-in | 69,200 |
 | **Whoosh** | Ruby 3.4 +YJIT | **Falcon** | **24,400** |
+| **Whoosh** | Ruby 3.4 +YJIT | Puma (5 threads) | **15,500** |
 | FastAPI | Python 3.13 | uvicorn | 8,900 |
-| **Whoosh** | Ruby 3.4 +YJIT | Puma | **7,300** |
-| Sinatra | Ruby 3.4 | Puma | 7,100 |
+| Sinatra | Ruby 3.4 | Puma (5 threads) | 7,100 |
 | PHP (raw) | PHP 8.5 | built-in | 2,000 |
 
-> Whoosh + Falcon is **2.7x faster** than FastAPI on a single core. Use Falcon (recommended) over Puma for best performance.
+> Whoosh + Falcon is **2.7x faster** than FastAPI single-core. Whoosh + Puma is **1.7x faster** than FastAPI. Use Falcon (recommended) for best performance.
 
 **Multi-worker** (production deployment):
 
