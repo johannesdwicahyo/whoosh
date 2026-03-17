@@ -303,7 +303,7 @@ module Whoosh
     end
 
     def auto_configure_jobs
-      backend = Jobs::MemoryBackend.new
+      backend = Jobs.build_backend(@config.data)
       Jobs.configure(backend: backend, di: @di)
     end
 
@@ -321,7 +321,7 @@ module Whoosh
         worker = Jobs::Worker.new(
           backend: Jobs.backend, di: @di,
           max_retries: max_retries, retry_delay: retry_delay,
-          instrumentation: @instrumentation
+          instrumentation: @instrumentation, logger: @logger
         )
         thread = Thread.new { worker.run_loop }
         thread.abort_on_exception = false

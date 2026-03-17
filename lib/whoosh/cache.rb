@@ -1,4 +1,3 @@
-# lib/whoosh/cache.rb
 # frozen_string_literal: true
 
 module Whoosh
@@ -6,20 +5,21 @@ module Whoosh
     autoload :MemoryStore, "whoosh/cache/memory_store"
     autoload :RedisStore,  "whoosh/cache/redis_store"
 
+    # Auto-detect: REDIS_URL set → Redis, otherwise → Memory
     def self.build(config_data = {})
       cache_config = config_data["cache"] || {}
-      store = cache_config["store"] || "memory"
       default_ttl = cache_config["default_ttl"] || 300
+      redis_url = ENV["REDIS_URL"] || cache_config["url"]
 
-      case store
-      when "memory"
-        MemoryStore.new(default_ttl: default_ttl)
-      when "redis"
-        url = cache_config["url"] || "redis://localhost:6379"
-        pool_size = cache_config["pool_size"] || 5
-        RedisStore.new(url: url, default_ttl: default_ttl, pool_size: pool_size)
+      if redis_url && cache_config["store"] != "memory"
+        begin
+          RedisStore.new(url: redis_url, default_ttl: default_ttl)
+        rescue Errors::DependencyError
+          # Redis gem not installed, fall back to memory
+          MemoryStore.new(default_ttl: default_ttl)
+        end
       else
-        raise ArgumentError, "Unknown cache store: #{store}"
+        MemoryStore.new(default_ttl: default_ttl)
       end
     end
   end

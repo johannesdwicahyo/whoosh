@@ -1,4 +1,3 @@
-# lib/whoosh/jobs/memory_backend.rb
 # frozen_string_literal: true
 
 module Whoosh
@@ -6,6 +5,7 @@ module Whoosh
     class MemoryBackend
       def initialize
         @queue = []
+        @scheduled = []
         @records = {}
         @mutex = Mutex.new
         @cv = ConditionVariable.new
@@ -13,14 +13,25 @@ module Whoosh
 
       def push(job_data)
         @mutex.synchronize do
-          @queue << job_data
+          if job_data[:run_at] && job_data[:run_at] > Time.now.to_f
+            @scheduled << job_data
+            @scheduled.sort_by! { |j| j[:run_at] }
+          else
+            @queue << job_data
+          end
           @cv.signal
         end
       end
 
       def pop(timeout: 5)
         @mutex.synchronize do
-          @cv.wait(@mutex, timeout) if @queue.empty?
+          # Promote scheduled jobs that are ready
+          promote_scheduled
+
+          if @queue.empty?
+            @cv.wait(@mutex, timeout)
+            promote_scheduled
+          end
           @queue.shift
         end
       end
@@ -34,11 +45,36 @@ module Whoosh
       end
 
       def size
+        @mutex.synchronize { @queue.size + @scheduled.size }
+      end
+
+      def pending_count
         @mutex.synchronize { @queue.size }
+      end
+
+      def scheduled_count
+        @mutex.synchronize { @scheduled.size }
       end
 
       def shutdown
         @mutex.synchronize { @cv.broadcast }
+      end
+
+      private
+
+      def promote_scheduled
+        now = Time.now.to_f
+        ready = []
+        remaining = []
+        @scheduled.each do |job|
+          if job[:run_at] <= now
+            ready << job
+          else
+            remaining << job
+          end
+        end
+        @scheduled = remaining
+        @queue.concat(ready)
       end
     end
   end
