@@ -367,19 +367,25 @@ whoosh db status              # migration status
 
 ### Real-World Benchmark: `GET /users/:id` from PostgreSQL (1000 rows)
 
-**Single process** (all frameworks use connection pooling):
+**Single process:**
 
 | Framework | Language | Req/sec |
 |-----------|----------|---------|
-| Fastify + pg | Node.js 22 | 40,900 |
-| **Whoosh + Puma** | Ruby 3.4 +YJIT | **8,600** |
+| Fastify + pg | Node.js 22 | 36,900 |
+| **Whoosh + Falcon (fiber PG pool)** | Ruby 3.4 +YJIT | **13,400** |
+| **Whoosh + Puma (Sequel)** | Ruby 3.4 +YJIT | **8,600** |
 | Roda + Puma | Ruby 3.4 | 6,700 |
-| **Whoosh + Falcon** | Ruby 3.4 +YJIT | **5,300** |
 | Sinatra + Puma | Ruby 3.4 | 4,400 |
 | FastAPI + uvicorn | Python 3.13 | 2,400 |
-| PHP + SQLite | PHP 8.5 | 1,900 |
 
-> Real-world with PostgreSQL: Whoosh is **3.6x faster** than FastAPI and **2x faster** than Sinatra.
+**Multi-worker:**
+
+| Framework | Language | Req/sec |
+|-----------|----------|---------|
+| **Whoosh + Falcon (4 workers)** | Ruby 3.4 +YJIT | **45,900** |
+| Fastify (single thread) | Node.js 22 | 36,900 |
+
+> Whoosh + Falcon with fiber-aware PG pool is **5.6x faster** than FastAPI. Multi-worker Falcon **beats Fastify** on real database workloads.
 
 ### Micro-benchmarks
 
