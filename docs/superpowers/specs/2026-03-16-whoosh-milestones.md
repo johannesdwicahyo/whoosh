@@ -221,3 +221,5 @@ Items deferred for later evaluation based on real benchmark data:
 - **HTTP/3 (QUIC)** — next-gen protocol support. Wait for Rack ecosystem support.
 - **gRPC transport** — for high-performance service-to-service. Evaluate based on user demand.
 - **WebAssembly (WASI) deployment** — run Whoosh in edge runtimes. Experimental.
+- **whoosh-admin gem** — plug-and-play admin dashboard (job monitoring, metrics, API key management, request logs). Separate gem to avoid bloating core Whoosh. CDN-served single HTML page, no asset pipeline. `gem "whoosh-admin"` → `App.admin enabled: true`.
+- **whoosh-landing gem** — plug-and-play marketing/landing page for API products. Separate gem. Branded template with API name, status, docs link, sign-up. `gem "whoosh-landing"` → serves at `/`. No CMS, just a template.
