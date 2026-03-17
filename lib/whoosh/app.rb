@@ -29,6 +29,7 @@ module Whoosh
       auto_register_database
       auto_register_storage
       auto_register_http
+      auto_register_vectors
       auto_configure_jobs
       @metrics = Metrics.new
       auto_register_metrics
@@ -300,6 +301,10 @@ module Whoosh
 
     def auto_register_http
       @di.provide(:http) { HTTP }
+    end
+
+    def auto_register_vectors
+      @di.provide(:vectors) { VectorStore.build(@config.data) }
     end
 
     def auto_configure_jobs

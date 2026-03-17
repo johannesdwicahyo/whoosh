@@ -175,8 +175,10 @@ module Whoosh
               max_connections: 10
               log_level: debug
 
+            # Cache & Jobs auto-detect:
+            # No REDIS_URL → in-memory (just works)
+            # Set REDIS_URL → auto-switches to Redis
             cache:
-              store: memory
               default_ttl: 300
 
             jobs:
@@ -187,6 +189,12 @@ module Whoosh
             logging:
               level: info
               format: json
+
+            # Vector store auto-detect:
+            # zvec gem installed → uses zvec, otherwise → in-memory
+            # vector:
+            #   adapter: auto
+            #   path: db/vectors
 
             docs:
               enabled: true
