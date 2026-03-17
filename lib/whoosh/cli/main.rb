@@ -115,6 +115,38 @@ module Whoosh
         end
       end
 
+      desc "worker", "Start background job worker"
+      option :concurrency, aliases: "-c", type: :numeric, default: 2
+      def worker
+        app_file = File.join(Dir.pwd, "app.rb")
+        unless File.exist?(app_file)
+          puts "Error: app.rb not found"
+          exit 1
+        end
+        require app_file
+        whoosh_app = ObjectSpace.each_object(Whoosh::App).first
+        unless whoosh_app
+          puts "Error: No Whoosh::App found"
+          exit 1
+        end
+
+        whoosh_app.to_rack  # boots everything including Jobs
+        concurrency = options[:concurrency]
+        puts "=> Whoosh worker (#{concurrency} threads)..."
+
+        workers = concurrency.times.map do
+          w = Jobs::Worker.new(backend: Jobs.backend, di: Jobs.di,
+            max_retries: whoosh_app.config.data.dig("jobs", "retry") || 3,
+            retry_delay: whoosh_app.config.data.dig("jobs", "retry_delay") || 5)
+          Thread.new { w.run_loop }
+          w
+        end
+
+        trap("INT") { workers.each(&:stop); exit 0 }
+        trap("TERM") { workers.each(&:stop); exit 0 }
+        sleep
+      end
+
       desc "db SUBCOMMAND", "Database commands"
       subcommand "db", Class.new(Thor) {
         namespace "db"

@@ -29,6 +29,7 @@ module Whoosh
       auto_register_database
       auto_register_storage
       auto_register_http
+      auto_configure_jobs
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -265,6 +266,7 @@ module Whoosh
         @router.freeze!
         inner = method(:handle_request)
         app = @middleware_stack.build(inner)
+        start_job_workers
         @shutdown.register { @di.close_all }
         @shutdown.register { @mcp_manager.shutdown_all }
         @shutdown.install_signal_handlers!
@@ -284,6 +286,34 @@ module Whoosh
 
     def auto_register_http
       @di.provide(:http) { HTTP }
+    end
+
+    def auto_configure_jobs
+      backend = Jobs::MemoryBackend.new
+      Jobs.configure(backend: backend, di: @di)
+    end
+
+    def start_job_workers
+      jobs_config = @config.data["jobs"] || {}
+      worker_count = jobs_config["workers"] || 2
+      max_retries = jobs_config["retry"] || 3
+      retry_delay = jobs_config["retry_delay"] || 5
+
+      @job_workers = worker_count.times.map do
+        worker = Jobs::Worker.new(
+          backend: Jobs.backend, di: @di,
+          max_retries: max_retries, retry_delay: retry_delay,
+          instrumentation: @instrumentation
+        )
+        thread = Thread.new { worker.run_loop }
+        thread.abort_on_exception = false
+        { worker: worker, thread: thread }
+      end
+
+      @shutdown.register do
+        @job_workers&.each { |w| w[:worker].stop }
+        Jobs.backend&.shutdown
+      end
     end
 
     def auto_register_database
