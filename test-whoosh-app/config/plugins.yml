@@ -1,0 +1,12 @@
+# Plugin configuration
+# Uncomment and configure as needed:
+#
+# lingua:
+#   languages: [en, id, ms]
+#
+# guardrails:
+#   language_check:
+#     enabled: true
+#
+# ner:
+#   enabled: false
