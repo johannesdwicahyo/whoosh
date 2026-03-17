@@ -63,5 +63,15 @@ RSpec.describe Whoosh::CLI::ProjectGenerator do
         expect(File.exist?(File.join(dir, "myapp", "config", "plugins.yml"))).to be true
       end
     end
+
+    it "generates Dockerfile" do
+      Dir.mktmpdir do |dir|
+        Whoosh::CLI::ProjectGenerator.create("myapp", root: dir)
+        expect(File.exist?(File.join(dir, "myapp", "Dockerfile"))).to be true
+        content = File.read(File.join(dir, "myapp", "Dockerfile"))
+        expect(content).to include("ruby:3.4")
+        expect(content).to include("whoosh")
+      end
+    end
   end
 end

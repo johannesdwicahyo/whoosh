@@ -23,6 +23,8 @@ module Whoosh
         write(dir, "schemas/health.rb", health_schema)
         write(dir, "test/test_helper.rb", test_helper)
         write(dir, ".env.example", env_example_template)
+        write(dir, "Dockerfile", dockerfile_template)
+        write(dir, ".dockerignore", dockerignore_template)
         puts "Created #{name}/ — run `cd #{name} && bundle install && whoosh server`"
       end
 
@@ -131,6 +133,38 @@ module Whoosh
             # ner:
             #   enabled: false
           YAML
+        end
+
+        def dockerfile_template
+          <<~DOCKERFILE
+            FROM ruby:3.4-slim
+
+            WORKDIR /app
+
+            # Install dependencies
+            COPY Gemfile Gemfile.lock ./
+            RUN bundle install --without development test
+
+            # Copy app
+            COPY . .
+
+            # Expose port
+            EXPOSE 9292
+
+            # Start server
+            CMD ["bundle", "exec", "whoosh", "s", "-p", "9292", "--host", "0.0.0.0"]
+          DOCKERFILE
+        end
+
+        def dockerignore_template
+          <<~IGNORE
+            .git
+            .env
+            node_modules
+            tmp
+            log
+            db/*.sqlite3
+          IGNORE
         end
       end
     end
