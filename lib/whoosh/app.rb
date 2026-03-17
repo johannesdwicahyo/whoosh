@@ -231,6 +231,14 @@ module Whoosh
       [200, Streaming::LlmStream.headers, body]
     end
 
+    def paginate(collection, page:, per_page: 20)
+      Paginate.offset(collection, page: page, per_page: per_page)
+    end
+
+    def paginate_cursor(collection, cursor: nil, limit: 20, column: :id)
+      Paginate.cursor(collection, cursor: cursor, limit: limit, column: column)
+    end
+
     # --- Endpoint loading ---
 
     def load_endpoints(dir)
