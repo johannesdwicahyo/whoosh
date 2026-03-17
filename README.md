@@ -378,14 +378,14 @@ whoosh db status              # migration status
 | Sinatra + Puma | Ruby 3.4 | 4,400 |
 | FastAPI + uvicorn | Python 3.13 | 2,400 |
 
-**Multi-worker:**
+**Multi-worker (PostgreSQL):**
 
 | Framework | Language | Req/sec |
 |-----------|----------|---------|
-| **Whoosh + Falcon (4 workers)** | Ruby 3.4 +YJIT | **45,900** |
+| **Whoosh + Falcon (4 workers, fiber PG pool)** | Ruby 3.4 +YJIT | **45,900** |
 | Fastify (single thread) | Node.js 22 | 36,900 |
 
-> Whoosh + Falcon with fiber-aware PG pool is **5.6x faster** than FastAPI. Multi-worker Falcon **beats Fastify** on real database workloads.
+> Whoosh + Falcon with fiber-aware PG pool is **5.6x faster** than FastAPI. Multi-worker Falcon **beats Fastify by 24%** on real PostgreSQL workloads.
 
 ### Micro-benchmarks
 
