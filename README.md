@@ -341,16 +341,27 @@ whoosh db status              # migration status
 
 > Apple Silicon arm64, 12 cores. [Full benchmark suite](benchmarks/comparison/)
 
+**Single process / single thread** (fair 1:1 comparison):
+
+| Framework | Language | Server | Req/sec |
+|-----------|----------|--------|---------|
+| Fastify | Node.js 22 | built-in | 69,200 |
+| **Whoosh** | Ruby 3.4 +YJIT | Falcon (1 worker) | **24,400** |
+| **Whoosh** | Ruby 3.4 +YJIT | Puma (single) | **7,300** |
+| FastAPI | Python 3.13 | uvicorn | 8,900 |
+| Sinatra | Ruby 3.4 | Puma (single) | 7,100 |
+| PHP (raw) | PHP 8.5 | built-in | 2,000 |
+
+**Multi-worker** (production deployment):
+
 | Framework | Language | Server | Req/sec |
 |-----------|----------|--------|---------|
 | **Whoosh** | Ruby 3.4 +YJIT | **Falcon (4 workers)** | **87,400** |
 | Fastify | Node.js 22 | built-in (single thread) | 69,200 |
 | **Whoosh** | Ruby 3.4 +YJIT | Puma (4w×4t) | **52,500** |
-| **Whoosh** | Ruby 3.4 +YJIT | Falcon (1 worker) | **24,400** |
 | Roda | Ruby 3.4 | Puma (4w×4t) | 14,700 |
-| FastAPI | Python 3.13 | uvicorn | 8,900 |
-| Sinatra | Ruby 3.4 | Puma (4w×4t) | 7,100 |
-| PHP (raw) | PHP 8.5 | built-in | 2,000 |
+
+> **Note:** Fastify is single-threaded by design (Node.js event loop). It can scale via `cluster` module but was not tested in that mode. Whoosh + Falcon with 4 workers uses 4 cores.
 
 ### Micro-benchmarks
 
