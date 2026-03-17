@@ -5,9 +5,10 @@ require "securerandom"
 module Whoosh
   module Middleware
     class RequestLogger
-      def initialize(app, logger:)
+      def initialize(app, logger:, metrics: nil)
         @app = app
         @logger = logger
+        @metrics = metrics
       end
 
       def call(env)
@@ -25,6 +26,11 @@ module Whoosh
           method: env["REQUEST_METHOD"], path: env["PATH_INFO"],
           status: status, duration_ms: duration_ms, request_id: request_id
         )
+
+        if @metrics
+          @metrics.increment("whoosh_requests_total", labels: { method: env["REQUEST_METHOD"], path: env["PATH_INFO"], status: status.to_s })
+          @metrics.observe("whoosh_request_duration_seconds", duration_ms / 1000.0, labels: { path: env["PATH_INFO"] })
+        end
 
         [status, headers, body]
       end
