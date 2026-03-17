@@ -343,9 +343,10 @@ whoosh db status              # migration status
 
 | Framework | Language | Server | Req/sec |
 |-----------|----------|--------|---------|
+| **Whoosh** | Ruby 3.4 +YJIT | **Falcon (4 workers)** | **87,400** |
+| Fastify | Node.js 22 | built-in (single thread) | 69,200 |
 | **Whoosh** | Ruby 3.4 +YJIT | Puma (4w×4t) | **52,500** |
-| Fastify | Node.js 22 | built-in | 69,200 |
-| **Whoosh** | Ruby 3.4 +YJIT | Falcon | **22,100** |
+| **Whoosh** | Ruby 3.4 +YJIT | Falcon (1 worker) | **24,400** |
 | Roda | Ruby 3.4 | Puma (4w×4t) | 14,700 |
 | FastAPI | Python 3.13 | uvicorn | 8,900 |
 | Sinatra | Ruby 3.4 | Puma (4w×4t) | 7,100 |
