@@ -24,6 +24,8 @@ module Whoosh
   autoload :Storage,             "whoosh/storage"
   autoload :UploadedFile,        "whoosh/uploaded_file"
   autoload :Performance,         "whoosh/performance"
+  autoload :Job,                 "whoosh/job"
+  autoload :Jobs,                "whoosh/jobs"
 
   module Auth
     autoload :ApiKey,         "whoosh/auth/api_key"
