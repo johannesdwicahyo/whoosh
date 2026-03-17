@@ -9,4 +9,6 @@ group :benchmark do
   gem "falcon"
   gem "sinatra"
   gem "roda"
+  gem "sequel"
+  gem "sqlite3"
 end

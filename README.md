@@ -365,6 +365,29 @@ whoosh db status              # migration status
 
 > **Note:** Fastify is single-threaded by design (Node.js event loop). It can scale via `cluster` module but was not tested in that mode. Whoosh + Falcon with 4 workers uses 4 cores.
 
+### Real-World Benchmark: `GET /users/:id` from SQLite (1000 rows)
+
+**Single process:**
+
+| Framework | Language | Req/sec |
+|-----------|----------|---------|
+| Fastify + better-sqlite3 | Node.js 22 | 58,600 |
+| **Whoosh + Falcon** | Ruby 3.4 +YJIT | **12,700** |
+| **Whoosh + Puma** | Ruby 3.4 +YJIT | **11,500** |
+| Roda + Puma | Ruby 3.4 | 8,500 |
+| Sinatra + Puma | Ruby 3.4 | 5,200 |
+| FastAPI + uvicorn | Python 3.13 | 3,700 |
+| PHP + SQLite | PHP 8.5 | 1,900 |
+
+**Multi-worker:**
+
+| Framework | Language | Req/sec |
+|-----------|----------|---------|
+| Fastify (single thread) | Node.js 22 | 58,600 |
+| **Whoosh + Puma (4w×4t)** | Ruby 3.4 +YJIT | **49,200** |
+
+> Real-world with database I/O: Whoosh is **3.5x faster** than FastAPI and **2.4x faster** than Sinatra.
+
 ### Micro-benchmarks
 
 | Component | Throughput |

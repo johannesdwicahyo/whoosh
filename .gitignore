@@ -2,3 +2,4 @@ examples/expo-client/node_modules/
 examples/expo-client/.expo/
 *.gem
 benchmarks/comparison/node_modules/
+benchmarks/comparison/bench.sqlite3
