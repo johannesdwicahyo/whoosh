@@ -6,7 +6,7 @@ require "stringio"
 
 module Whoosh
   class App
-    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager, :instrumentation, :shutdown
+    attr_reader :config, :logger, :plugin_registry, :authenticator, :rate_limiter_instance, :token_tracker, :acl, :mcp_server, :mcp_manager, :instrumentation, :shutdown, :metrics
 
     def initialize(root: Dir.pwd)
       EnvLoader.load(root)
@@ -30,6 +30,8 @@ module Whoosh
       auto_register_storage
       auto_register_http
       auto_configure_jobs
+      @metrics = Metrics.new
+      auto_register_metrics
       @authenticator = nil
       @rate_limiter_instance = nil
       @token_tracker = Auth::TokenTracker.new
@@ -272,6 +274,7 @@ module Whoosh
         @di.validate!
         register_mcp_tools
         register_doc_routes if @config.docs_enabled?
+        register_metrics_route
         @router.freeze!
         inner = method(:handle_request)
         app = @middleware_stack.build(inner)
@@ -300,6 +303,10 @@ module Whoosh
     def auto_configure_jobs
       backend = Jobs::MemoryBackend.new
       Jobs.configure(backend: backend, di: @di)
+    end
+
+    def auto_register_metrics
+      @di.provide(:metrics) { @metrics }
     end
 
     def start_job_workers
@@ -358,7 +365,7 @@ module Whoosh
       @middleware_stack.use(Middleware::RequestLimit)
       @middleware_stack.use(Middleware::SecurityHeaders)
       @middleware_stack.use(Middleware::Cors)
-      @middleware_stack.use(Middleware::RequestLogger, logger: @logger)
+      @middleware_stack.use(Middleware::RequestLogger, logger: @logger, metrics: @metrics)
     end
 
     def register_mcp_tools
@@ -428,6 +435,14 @@ module Whoosh
           request_schema: nil, response_schema: nil, middleware: []
         })
       end
+    end
+
+    def register_metrics_route
+      metrics_ref = @metrics
+      @router.add("GET", "/metrics", {
+        block: -> (_req) { [200, { "content-type" => "text/plain; version=0.0.4" }, [metrics_ref.to_prometheus]] },
+        request_schema: nil, response_schema: nil, middleware: []
+      })
     end
 
     def add_route(method, path, request: nil, response: nil, **metadata, &block)
