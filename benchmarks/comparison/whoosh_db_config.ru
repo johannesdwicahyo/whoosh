@@ -1,0 +1,22 @@
+# frozen_string_literal: true
+
+require_relative "../../lib/whoosh"
+require "sequel"
+
+Whoosh::Performance.optimize!
+
+DB = Sequel.sqlite(File.join(__dir__, "bench.sqlite3"))
+
+app = Whoosh::App.new
+app.instance_variable_get(:@logger).instance_variable_set(:@level, 99)
+
+app.get "/users/:id" do |req|
+  user = DB[:users].where(id: req.params[:id].to_i).first
+  if user
+    { id: user[:id], name: user[:name], email: user[:email], age: user[:age], role: user[:role] }
+  else
+    [404, { "content-type" => "application/json" }, ['{"error":"not_found"}']]
+  end
+end
+
+run app.to_rack
