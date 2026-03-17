@@ -341,16 +341,18 @@ whoosh db status              # migration status
 
 > Apple Silicon arm64, 12 cores. [Full benchmark suite](benchmarks/comparison/)
 
-**Single process / single thread** (fair 1:1 comparison):
+**Single process** (fair 1:1 comparison):
 
 | Framework | Language | Server | Req/sec |
 |-----------|----------|--------|---------|
 | Fastify | Node.js 22 | built-in | 69,200 |
-| **Whoosh** | Ruby 3.4 +YJIT | Falcon (1 worker) | **24,400** |
-| **Whoosh** | Ruby 3.4 +YJIT | Puma (single) | **7,300** |
+| **Whoosh** | Ruby 3.4 +YJIT | **Falcon** | **24,400** |
 | FastAPI | Python 3.13 | uvicorn | 8,900 |
-| Sinatra | Ruby 3.4 | Puma (single) | 7,100 |
+| **Whoosh** | Ruby 3.4 +YJIT | Puma | **7,300** |
+| Sinatra | Ruby 3.4 | Puma | 7,100 |
 | PHP (raw) | PHP 8.5 | built-in | 2,000 |
+
+> Whoosh + Falcon is **2.7x faster** than FastAPI on a single core. Use Falcon (recommended) over Puma for best performance.
 
 **Multi-worker** (production deployment):
 
