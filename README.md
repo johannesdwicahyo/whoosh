@@ -386,7 +386,7 @@ whoosh db status              # migration status
 | Fastify (single thread) | Node.js 22 | 58,600 |
 | **Whoosh + Puma (4w×4t)** | Ruby 3.4 +YJIT | **49,200** |
 
-> Real-world with database I/O: Whoosh is **3.5x faster** than FastAPI and **2.4x faster** than Sinatra.
+> Real-world with database I/O: Whoosh is **3.5x faster** than FastAPI and **2.4x faster** than Sinatra. Whoosh + Puma clustered reaches **84%** of Fastify's throughput on database workloads.
 
 ### Micro-benchmarks
 
