@@ -1,20 +1,42 @@
-# Whoosh
+<p align="center">
+  <img src="docs/images/whoosh-banner.png" alt="Whoosh — AI-First Ruby API Framework" width="100%">
+</p>
 
-AI-first Ruby API framework inspired by FastAPI — schema validation, MCP, streaming, and OpenAPI docs out of the box.
+<h1 align="center">Whoosh</h1>
 
-![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.4.0-red) ![Rack](https://img.shields.io/badge/rack-3.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+<p align="center">
+  <strong>AI-first Ruby API framework inspired by FastAPI</strong><br>
+  Schema validation, MCP, streaming, background jobs, and OpenAPI docs — out of the box.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/ruby-%3E%3D%203.4.0-red" alt="Ruby">
+  <img src="https://img.shields.io/badge/rack-3.0-blue" alt="Rack">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/tests-509%20passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/overhead-2.5%C2%B5s-orange" alt="Performance">
+</p>
+
+---
+
+## Why Whoosh?
+
+- **AI-first** — MCP server built-in, LLM streaming, token tracking, plugin auto-discovery for 18+ AI gems
+- **Fast** — 2.5µs framework overhead, 406K req/s on simple JSON, YJIT + Oj auto-enabled
+- **Batteries included** — Auth, rate limiting, caching, background jobs, file uploads, pagination, metrics
+- **Zero config to start** — `whoosh new myapp && cd myapp && whoosh s`
+- **OpenAPI 3.1** — Swagger UI + ReDoc auto-generated from your routes and schemas
 
 ## Install
-
-```ruby
-# Gemfile
-gem "whoosh"
-```
 
 ```sh
 gem install whoosh
 whoosh new my_api
+cd my_api
+whoosh s
 ```
+
+Open http://localhost:9292/docs for Swagger UI.
 
 ## Quick Start
 
@@ -24,351 +46,368 @@ require "whoosh"
 
 app = Whoosh::App.new
 
-app.get("/") { { message: "hello" } }
-
-app.post("/echo", request: EchoSchema) do |req|
-  { echoed: req.body[:message] }
+app.get "/health" do
+  { status: "ok", version: Whoosh::VERSION }
 end
 
-run app.to_rack
+app.post "/chat", request: ChatRequest, mcp: true do |req|
+  stream_llm do |out|
+    llm.chat(req.body[:message]).each_chunk { |c| out << c }
+    out.finish
+  end
+end
 ```
 
 ```sh
-whoosh server        # http://localhost:9292
-# OpenAPI docs:      http://localhost:9292/docs
+whoosh s              # Start server
+whoosh s --reload     # Auto-reload on file changes
+whoosh s -p 3000      # Custom port
 ```
 
-## Routing
+## Features
 
-### Inline
-
-```ruby
-app.get("/users/:id") do |req|
-  { id: req.path_params[:id] }
-end
-
-app.post("/items", request: ItemSchema) do |req|
-  { created: req.body }
-end
-```
-
-### Class-based
+### Routing
 
 ```ruby
-class UsersEndpoint < Whoosh::Endpoint
-  get "/users", auth: true
-  post "/users", request: CreateUserSchema
+# Inline
+app.get("/users/:id") { |req| { id: req.params[:id] } }
+
+# Class-based
+class ChatEndpoint < Whoosh::Endpoint
+  post "/chat", request: ChatRequest, mcp: true
 
   def call(req)
-    case req.method
-    when "GET"  then { users: [] }
-    when "POST" then [201, {}, [JSON.generate(req.body)]]
-    end
+    { reply: "Hello!" }
   end
 end
+app.load_endpoints("endpoints/")
 
-app.load_endpoints("app/endpoints")
-# or register directly:
-app.register_endpoint(UsersEndpoint)
-```
-
-### Groups
-
-```ruby
-app.group("/api/v1", middleware: [RateLimitMiddleware]) do
+# Groups with shared middleware
+app.group "/api/v1", mcp: true do
   get("/status") { { ok: true } }
-
-  group("/admin") do
-    get("/stats", auth: true) { Stats.all }
-  end
+  post("/analyze", auth: :api_key) { |req| analyze(req) }
 end
 ```
 
-## Schema Validation
+### Schema Validation
 
 ```ruby
-class CreateUserSchema < Whoosh::Schema
-  field :name,  String,  required: true
-  field :email, String,  required: true
+class CreateUserRequest < Whoosh::Schema
+  field :name,  String,  required: true, desc: "User name"
+  field :email, String,  required: true, desc: "Email address"
   field :age,   Integer, min: 0, max: 150
   field :role,  String,  default: "user"
 end
 
-class AddressSchema < Whoosh::Schema
-  field :street, String, required: true
-  field :city,   String, required: true
-end
-
-class ProfileSchema < Whoosh::Schema
-  field :bio,     String
-  field :address, AddressSchema   # nested
+# Returns 422 with field-level errors on invalid input
+app.post "/users", request: CreateUserRequest do |req|
+  { name: req.body[:name], created: true }
 end
 ```
 
-Validation runs automatically when a route has `request:`. Errors return `422` with field-level details:
-
-```json
-{ "errors": [{ "field": "email", "message": "is missing", "value": null }] }
-```
-
-## Auth
-
-### API Key
+### Authentication & Security
 
 ```ruby
 app.auth do
   api_key header: "X-Api-Key", keys: {
-    "sk-prod-abc123" => { tier: :premium, models: ["gpt-4"] },
-    "sk-free-xyz789" => { tier: :free }
+    "sk-prod-123" => { role: :premium },
+    "sk-free-456" => { role: :free }
   }
+  jwt secret: ENV["JWT_SECRET"], algorithm: :hs256
 end
 
-app.get("/protected", auth: true) do |req|
-  key_info = req.env["whoosh.auth"]
-  { tier: key_info[:tier] }
-end
-```
-
-### JWT
-
-```ruby
-app.auth do
-  jwt secret: ENV["JWT_SECRET"], algorithm: :hs256, expiry: 3600
-end
-```
-
-### Rate Limiting
-
-```ruby
 app.rate_limit do
   default limit: 60, period: 60
-
-  rule "/api/completions", limit: 10, period: 60
-
-  tier :free,    limit: 100, period: 3600
+  rule "/chat", limit: 10, period: 60
+  tier :free,    limit: 100,  period: 3600
   tier :premium, limit: 5000, period: 3600
-  tier :internal, unlimited: true
-
-  on_store_failure :fail_open   # or :fail_closed
+  on_store_failure :fail_open
 end
-```
 
-### Token Usage Tracking
-
-```ruby
-app.token_tracking do
-  on_usage do |key, prompt_tokens, completion_tokens|
-    UsageLog.record(key: key, prompt: prompt_tokens, completion: completion_tokens)
-  end
-end
-```
-
-## Streaming
-
-### SSE
-
-```ruby
-app.get("/events") do
-  stream(:sse) do |sse|
-    sse.event("connected", { ts: Time.now.to_i })
-    sse << { message: "hello" }
-    sse.event("update", { value: 42 })
-    sse.close
-  end
+app.access_control do
+  role :free,    models: ["claude-haiku"]
+  role :premium, models: ["claude-haiku", "claude-sonnet", "claude-opus"]
 end
 ```
 
 ### LLM Streaming (OpenAI-compatible)
 
 ```ruby
-app.post("/chat") do |req|
-  stream_llm do |s|
-    llm.chat(req.body[:messages]).each_chunk do |chunk|
-      s << chunk          # emits OpenAI-format delta SSE
-    end
-    s.finish              # sends data: [DONE]
+app.post "/chat/stream", auth: :api_key do |req|
+  stream_llm do |out|
+    # True chunked streaming via SizedQueue — tokens flow in real-time
+    out << "Hello "
+    out << "World!"
+    out.finish  # sends data: [DONE]
+  end
+end
+
+# SSE events
+app.get "/events" do
+  stream :sse do |out|
+    out.event("status", { connected: true })
+    out << { data: "hello" }
   end
 end
 ```
 
-### WebSocket
+### MCP (Model Context Protocol)
 
 ```ruby
-app.get("/ws") do |req|
-  ws = Whoosh::Streaming::WebSocket.new(req.env)
-  ws.on_message { |msg| ws.send(msg.upcase) }
-  ws.rack_response
+# Any route with mcp: true becomes an MCP tool automatically
+app.post "/summarize", mcp: true, request: SummarizeRequest do |req|
+  { summary: llm.summarize(req.body[:text]) }
+end
+
+# Groups propagate mcp: true to all child routes
+app.group "/tools", mcp: true do
+  post("/translate") { |req| { result: translate(req.body[:text]) } }
+  post("/analyze")   { |req| { result: analyze(req.body[:text]) } }
 end
 ```
-
-## MCP
-
-Routes marked `mcp: true` are automatically registered as MCP tools.
-
-```ruby
-app.post("/tools/search", mcp: true, request: SearchSchema) do |req|
-  Results.search(req.body[:query])
-end
-
-app.post("/tools/summarize", mcp: true, request: SummarizeSchema) do |req|
-  Summarizer.run(req.body[:text])
-end
-```
-
-Start the MCP server over stdio (for Claude Desktop, Cursor, etc.):
 
 ```sh
-whoosh mcp                 # stdio JSON-RPC 2.0
-whoosh mcp --list          # list registered tools
+whoosh mcp              # stdio transport (Claude Desktop, Cursor)
+whoosh mcp --list       # list registered MCP tools
 ```
 
-Connect an MCP client:
+### Background Jobs
 
 ```ruby
-app.mcp_client :python_tools, command: "python tools_server.py"
+class AnalyzeJob < Whoosh::Job
+  inject :db, :llm  # DI injection
 
-app.get("/analyze") do
-  python_tools.call_tool("analyze", { input: "data" })
+  def perform(document_id:)
+    doc = db[:documents].where(id: document_id).first
+    result = llm.complete("Analyze: #{doc[:text]}")
+    db[:documents].where(id: document_id).update(analysis: result)
+    { analyzed: true }
+  end
+end
+
+# Fire and forget
+app.post "/analyze" do |req|
+  job_id = AnalyzeJob.perform_async(document_id: req.body["id"])
+  { job_id: job_id }
+end
+
+# Check status
+app.get "/jobs/:id" do |req|
+  job = Whoosh::Jobs.find(req.params[:id])
+  { status: job[:status], result: job[:result] }
 end
 ```
 
-## Plugins
+```sh
+whoosh worker           # dedicated worker process
+whoosh worker -c 4      # 4 threads
+```
 
-Whoosh auto-discovers AI gems from `Gemfile.lock` and exposes them as lazy accessors.
+### File Upload
 
 ```ruby
-# Gemfile
+app.post "/upload" do |req|
+  file = req.files["document"]
+
+  file.filename      # => "report.pdf"
+  file.content_type  # => "application/pdf"
+  file.size          # => 245760
+  file.read_text     # => UTF-8 string (for RAG)
+  file.to_base64     # => base64 (for vision APIs)
+  file.validate!(types: ["application/pdf"], max_size: 10_000_000)
+
+  path = file.save("documents")
+  { path: path }
+end
+```
+
+### Cache
+
+```ruby
+app.get "/users/:id" do |req, cache:|
+  cache.fetch("user:#{req.params[:id]}", ttl: 60) do
+    db[:users].where(id: req.params[:id]).first
+  end
+end
+```
+
+### Pagination
+
+```ruby
+# Offset-based
+app.get "/users" do |req|
+  paginate(db[:users].order(:id),
+    page: req.query_params["page"], per_page: 20)
+end
+
+# Cursor-based (recommended for large datasets)
+app.get "/messages" do |req|
+  paginate_cursor(db[:messages].order(:id),
+    cursor: req.query_params["cursor"], limit: 20)
+end
+```
+
+### Plugins (18 AI Gems Auto-Discovered)
+
+```ruby
+# Just add gems to Gemfile — they're auto-discovered from Gemfile.lock
 gem "ruby_llm"
-gem "rag-ruby"
-gem "zvec-ruby"
+gem "lingua-ruby"
+gem "ner-ruby"
+gem "guardrails-ruby"
 
-# app.rb — accessors available automatically after Gemfile.lock scan
-app.get("/generate") do
-  llm.chat("Hello")          # ruby_llm
-end
-
-app.get("/search") do |req|
-  results = rag.search(req.query_params[:q])  # rag-ruby
-  { results: results }
+# Available as bare method calls in endpoints:
+app.post "/analyze" do |req|
+  lang     = lingua.detect(req.body["text"])
+  entities = ner.recognize(req.body["text"])
+  { language: lang, entities: entities }
 end
 ```
 
-Configure or disable in `config/plugins.yml`:
-
-```yaml
-llm:
-  enabled: true
-  model: gpt-4o
-
-guardrails:
-  enabled: false
-```
-
-Or in code:
+### HTTP Client
 
 ```ruby
-app.plugin :llm, model: "gpt-4o-mini"
-app.plugin :rag, enabled: false
+app.post "/proxy" do |req, http:|
+  result = http.post("https://api.example.com/analyze",
+    json: req.body,
+    headers: { "Authorization" => "Bearer #{ENV["API_KEY"]}" },
+    timeout: 30
+  )
+  result.json  # parsed response
+end
 ```
 
-Built-in mappings: `ruby_llm`, `rag-ruby`, `zvec-ruby`, `onnx-ruby`, `tokenizer-ruby`, `reranker-ruby`, `chunker-ruby`, `guardrails-ruby`, `lingua-ruby`, `ner-ruby`, `prompter-ruby`, `sequel`, and more (18 total).
+### Prometheus Metrics
 
-## OpenAPI Docs
+Auto-tracked at `/metrics`:
 
-Auto-generated from routes and schemas. Available at `/docs` (Swagger UI) and `/openapi.json`.
+```
+whoosh_requests_total{method="GET",path="/health",status="200"} 1234
+whoosh_request_duration_seconds_sum{path="/health"} 45.23
+whoosh_request_duration_seconds_count{path="/health"} 1234
+```
+
+### OpenAPI & Docs
 
 ```ruby
 app.openapi do
   title "My AI API"
   version "1.0.0"
-  description "Powers our AI features"
 end
 
-# disable if needed:
-# config/app.yml → docs.enabled: false
+app.docs enabled: true, redoc: true
 ```
 
-## CLI Commands
+- `/docs` — Swagger UI
+- `/redoc` — ReDoc
+- `/openapi.json` — Machine-readable spec
+
+### Health Checks
+
+```ruby
+app.health_check do
+  probe(:database) { db.test_connection }
+  probe(:cache)    { cache.get("ping") || true }
+end
+# GET /healthz → { "status": "ok", "checks": { "database": "ok" } }
+```
+
+## CLI
 
 ```sh
-whoosh new my_api [--minimal|--full]  # scaffold new project
-whoosh server [-p PORT]               # start server
-whoosh routes                         # list all routes
-whoosh console                        # IRB with app loaded
-whoosh mcp [--list]                   # MCP stdio server
+whoosh new my_api             # scaffold project (with Dockerfile)
+whoosh s                      # start server (like rails s)
+whoosh s --reload             # hot reload on file changes
+whoosh routes                 # list all routes
+whoosh console                # IRB with app loaded
+whoosh worker                 # background job worker
+whoosh mcp                    # MCP stdio server
 
-whoosh generate endpoint users        # endpoint + schema + spec
-whoosh generate schema CreateUser     # schema file
+whoosh generate endpoint chat       # endpoint + schema + test
+whoosh generate schema User         # schema file
 whoosh generate model User name:string email:string
-whoosh generate migration add_index_to_users
+whoosh generate migration add_email_to_users
+whoosh generate plugin my_tool      # plugin boilerplate
+whoosh generate proto ChatRequest   # .proto file
+
+whoosh db migrate             # run migrations
+whoosh db rollback            # rollback
+whoosh db status              # migration status
 ```
 
 ## Performance
 
 | Benchmark | Result |
-|---|---|
-| Simple JSON endpoint | 406K req/s |
-| Schema-validated endpoint | 115K req/s |
-| Router lookup (static) | 6.1M lookups/s |
-| Framework overhead | ~2.5µs |
+|-----------|--------|
+| Simple JSON endpoint | **406K req/s** |
+| Schema-validated endpoint | **115K req/s** |
+| Router lookup (static) | **6.1M lookups/s** |
+| Framework overhead | **~2.5µs per request** |
 
-```ruby
-# YJIT auto-enabled, Oj auto-detected
-Whoosh::Performance.optimize!   # called automatically on server start
-
-Whoosh::Performance.yjit_enabled?   # => true
-Whoosh::Serialization::Json.engine  # => :oj or :json
-```
-
-Static routes use an O(1) hash cache. Middleware is compiled once at startup. Headers are frozen.
+Optimizations: YJIT auto-enabled, Oj JSON auto-detected (5-10x faster), O(1) static route cache, pre-frozen headers, compiled middleware chain.
 
 ## Configuration
 
-`config/app.yml` (ERB supported):
-
 ```yaml
+# config/app.yml
 app:
   name: My API
-  env: production
   port: 9292
-  host: 0.0.0.0
 
-server:
-  type: falcon
-  workers: auto
-  timeout: 30
+database:
+  url: <%= ENV.fetch("DATABASE_URL", "sqlite://db/dev.sqlite3") %>
+  max_connections: 10
+
+cache:
+  store: memory    # memory | redis
+  default_ttl: 300
+
+jobs:
+  backend: memory  # memory | database | redis
+  workers: 2
 
 logging:
-  level: info      # debug | info | warn | error
-  format: json     # json | text
+  level: info
+  format: json
 
 docs:
   enabled: true
-
-performance:
-  yjit: true
-  yjit_exec_mem: 64
 ```
 
-Environment variable overrides:
+`.env` files loaded automatically (dotenv-compatible).
 
-```sh
-WHOOSH_PORT=8080
-WHOOSH_HOST=0.0.0.0
-WHOOSH_ENV=production
-WHOOSH_LOG_LEVEL=warn
-WHOOSH_LOG_FORMAT=json
-```
-
-Health check:
+## Testing
 
 ```ruby
-app.health_check(path: "/healthz") do
-  probe(:database) { DB.test_connection }
-  probe(:redis)    { Redis.current.ping }
+require "whoosh/test"
+
+RSpec.describe "My API" do
+  include Whoosh::Test
+
+  def app = MyApp.to_rack
+
+  it "creates a user" do
+    post_json "/users", { name: "Alice", email: "a@b.com" }
+    assert_response 200
+    assert_json(name: "Alice")
+  end
+
+  it "requires auth" do
+    get "/protected"
+    assert_response 401
+  end
+
+  it "works with auth" do
+    get_with_auth "/protected", key: "sk-test"
+    assert_response 200
+  end
 end
 ```
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
