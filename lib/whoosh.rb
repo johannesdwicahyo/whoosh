@@ -26,6 +26,7 @@ module Whoosh
   autoload :Performance,         "whoosh/performance"
   autoload :Job,                 "whoosh/job"
   autoload :Jobs,                "whoosh/jobs"
+  autoload :Paginate,            "whoosh/paginate"
 
   module Auth
     autoload :ApiKey,         "whoosh/auth/api_key"
