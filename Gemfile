@@ -11,4 +11,5 @@ group :benchmark do
   gem "roda"
   gem "sequel"
   gem "sqlite3"
+  gem "pg"
 end

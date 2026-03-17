@@ -109,6 +109,7 @@ GEM
       ruby2_keywords (~> 0.0.1)
     nio4r (2.7.5)
     openssl (4.0.1)
+    pg (1.6.3-arm64-darwin)
     protocol-hpack (1.5.1)
     protocol-http (0.60.0)
     protocol-http1 (0.37.0)
@@ -178,6 +179,7 @@ PLATFORMS
 DEPENDENCIES
   benchmark-ips (~> 2.13)
   falcon
+  pg
   puma
   rack-test (~> 2.1)
   rake (~> 13.0)
@@ -224,6 +226,7 @@ CHECKSUMS
   mustermann (3.0.4) sha256=85fadcb6b3c6493a8b511b42426f904b7f27b282835502233dd154daab13aa22
   nio4r (2.7.5) sha256=6c90168e48fb5f8e768419c93abb94ba2b892a1d0602cb06eef16d8b7df1dca1
   openssl (4.0.1) sha256=e27974136b7b02894a1bce46c5397ee889afafe704a839446b54dc81cb9c5f7d
+  pg (1.6.3-arm64-darwin) sha256=7240330b572e6355d7c75a7de535edb5dfcbd6295d9c7777df4d9dddfb8c0e5f
   protocol-hpack (1.5.1) sha256=6feca238b8078da1cd295677d6f306c6001af92d75fe0643d33e6956cbc3ad91
   protocol-http (0.60.0) sha256=ca1354947676d663b6f23c49654aee464288774e7867c4a6e406fecce9691cec
   protocol-http1 (0.37.0) sha256=5bdd739e28792b341134596f6f5ab21a9d4b395f67bae69e153743eb0e69d123
