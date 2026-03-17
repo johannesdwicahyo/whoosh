@@ -16,18 +16,9 @@ echo ""
 DURATION=10
 THREADS=4
 CONNECTIONS=100
-PORT=3000
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
-
-run_wrk() {
-  local name="$1"
-  local port="$2"
-  echo ">>> $name"
-  wrk -t$THREADS -c$CONNECTIONS -d${DURATION}s http://localhost:$port/health 2>&1 | grep -E "(Latency|Requests/sec|Transfer)"
-  echo ""
-}
 
 start_and_bench() {
   local name="$1"
@@ -35,100 +26,72 @@ start_and_bench() {
   local port="$3"
   local wait="${4:-3}"
 
-  echo "--- Starting $name on port $port ---"
-  eval "$cmd" > /dev/null &
+  eval "$cmd" > /dev/null 2>&1 &
   local pid=$!
   sleep $wait
 
-  # Verify it's running
   curl -s http://localhost:$port/health > /dev/null 2>&1
   if [ $? -ne 0 ]; then
-    echo ">>> $name — FAILED TO START"
+    echo "  $name — FAILED TO START"
     echo ""
     kill $pid 2>/dev/null; wait $pid 2>/dev/null
     return
   fi
 
-  run_wrk "$name" "$port"
+  local result=$(wrk -t$THREADS -c$CONNECTIONS -d${DURATION}s http://localhost:$port/health 2>&1)
+  local rps=$(echo "$result" | grep "Requests/sec" | awk '{print $2}')
+  local lat=$(echo "$result" | grep "Latency" | awk '{print $2}')
+
+  printf "  %-40s %12s req/s  %10s avg\n" "$name" "$rps" "$lat"
+
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
   sleep 1
 }
 
 cd "$ROOT"
 
-# ============ RUBY FRAMEWORKS ============
+echo "  Framework                                     Req/sec     Latency"
+echo "  ────────────────────────────────────────────────────────────────────"
 
-echo "========== RUBY =========="
+# Ruby
+start_and_bench "Whoosh + Puma (4w×4t, preload)" \
+  "bundle exec puma '$DIR/whoosh_config.ru' -p 3001 -w 4 -t 4:4 --preload -q" 3001 8
+
+start_and_bench "Whoosh + Falcon" \
+  "bundle exec rackup '$DIR/whoosh_config.ru' -p 3002 -s falcon -q" 3002 4
+
+start_and_bench "Whoosh + Puma (single)" \
+  "bundle exec rackup '$DIR/whoosh_config.ru' -p 3000 -s puma -q" 3000
+
+start_and_bench "Roda + Puma (4w×4t, preload)" \
+  "bundle exec puma '$DIR/roda_config.ru' -p 3004 -w 4 -t 4:4 --preload -q" 3004 8
+
+start_and_bench "Sinatra + Puma (4w×4t, preload)" \
+  "bundle exec puma '$DIR/sinatra_config.ru' -p 3003 -w 4 -t 4:4 --preload -q" 3003 8
+
+start_and_bench "Whoosh + WEBrick" \
+  "bundle exec rackup '$DIR/whoosh_config.ru' -p 3010 -q" 3010
+
 echo ""
 
-# Whoosh + WEBrick
-start_and_bench \
-  "Whoosh + WEBrick" \
-  "bundle exec rackup '$DIR/whoosh_config.ru' -p 3000 -q 2>/dev/null" \
-  3000
+# Node.js
+start_and_bench "Fastify (Node.js)" \
+  "cd '$DIR' && PORT=3007 node fastify_app.js" 3007 2
 
-# Whoosh + Puma
-start_and_bench \
-  "Whoosh + Puma" \
-  "bundle exec rackup '$DIR/whoosh_config.ru' -p 3001 -s puma -q 2>/dev/null" \
-  3001
-
-# Whoosh + Falcon
-start_and_bench \
-  "Whoosh + Falcon" \
-  "bundle exec rackup '$DIR/whoosh_config.ru' -p 3002 -s falcon -q 2>/dev/null" \
-  3002 4
-
-# Sinatra + Puma
-start_and_bench \
-  "Sinatra + Puma" \
-  "bundle exec rackup '$DIR/sinatra_config.ru' -p 3003 -s puma -q 2>/dev/null" \
-  3003
-
-# Roda + Puma
-start_and_bench \
-  "Roda + Puma" \
-  "bundle exec rackup '$DIR/roda_config.ru' -p 3004 -s puma -q 2>/dev/null" \
-  3004
-
-# ============ PYTHON ============
-
-echo "========== PYTHON =========="
 echo ""
 
-# FastAPI + uvicorn
-start_and_bench \
-  "FastAPI + uvicorn" \
-  "cd '$DIR' && /opt/homebrew/bin/python3 -m uvicorn fastapi_app:app --host localhost --port 3005 --log-level error 2>/dev/null" \
-  3005
+# Python
+start_and_bench "FastAPI + uvicorn" \
+  "cd '$DIR' && /opt/homebrew/bin/python3 -m uvicorn fastapi_app:app --host localhost --port 3005 --log-level error" 3005
 
-# ============ NODE.JS ============
-
-echo "========== NODE.JS =========="
 echo ""
 
-# Fastify
-start_and_bench \
-  "Fastify" \
-  "cd '$DIR' && PORT=3007 node fastify_app.js 2>/dev/null" \
-  3007 2
-
-# ============ PHP ============
-
-echo "========== PHP =========="
-echo ""
-
-# PHP built-in server
+# PHP
 if command -v php &> /dev/null; then
-  start_and_bench \
-    "PHP built-in server (raw)" \
-    "php -S localhost:3006 '$DIR/laravel_app.php' 2>/dev/null" \
-    3006 2
-else
-  echo ">>> PHP — NOT INSTALLED, SKIPPED"
-  echo ""
+  start_and_bench "PHP built-in (raw)" \
+    "php -S localhost:3006 '$DIR/laravel_app.php'" 3006 2
 fi
 
-echo "========================================================"
+echo ""
+echo "  ────────────────────────────────────────────────────────────────────"
 echo "  Benchmark complete!"
-echo "========================================================"

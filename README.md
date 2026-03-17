@@ -337,14 +337,29 @@ whoosh db status              # migration status
 
 ## Performance
 
-| Benchmark | Result |
-|-----------|--------|
-| Simple JSON endpoint | **406K req/s** |
-| Schema-validated endpoint | **115K req/s** |
-| Router lookup (static) | **6.1M lookups/s** |
+### HTTP Benchmark: `GET /health → {"status":"ok"}`
+
+> Apple Silicon arm64, 12 cores. [Full benchmark suite](benchmarks/comparison/)
+
+| Framework | Language | Server | Req/sec |
+|-----------|----------|--------|---------|
+| **Whoosh** | Ruby 3.4 +YJIT | Puma (4w×4t) | **52,500** |
+| Fastify | Node.js 22 | built-in | 69,200 |
+| **Whoosh** | Ruby 3.4 +YJIT | Falcon | **22,100** |
+| Roda | Ruby 3.4 | Puma (4w×4t) | 14,700 |
+| FastAPI | Python 3.13 | uvicorn | 8,900 |
+| Sinatra | Ruby 3.4 | Puma (4w×4t) | 7,100 |
+| PHP (raw) | PHP 8.5 | built-in | 2,000 |
+
+### Micro-benchmarks
+
+| Component | Throughput |
+|-----------|-----------|
+| Router lookup (static, cached) | **6.1M ops/s** |
+| JSON encode (Oj) | **5.4M ops/s** |
 | Framework overhead | **~2.5µs per request** |
 
-Optimizations: YJIT auto-enabled, Oj JSON auto-detected (5-10x faster), O(1) static route cache, pre-frozen headers, compiled middleware chain.
+Optimizations: YJIT auto-enabled, Oj JSON auto-detected, O(1) static route cache, compiled middleware chain, pre-frozen headers.
 
 ## Configuration
 
