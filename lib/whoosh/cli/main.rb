@@ -16,6 +16,7 @@ module Whoosh
       desc "server", "Start the Whoosh server"
       option :port, aliases: "-p", type: :numeric, default: 9292, desc: "Port number"
       option :host, aliases: "-h", type: :string, default: "localhost", desc: "Host to bind"
+      option :reload, type: :boolean, default: false, desc: "Restart server on file changes"
       map "s" => :server
       def server
         app_file = File.join(Dir.pwd, "app.rb")
@@ -33,6 +34,43 @@ module Whoosh
         puts "=> http://#{host}:#{port}"
         puts "=> Ctrl-C to stop"
         puts ""
+
+        if options[:reload]
+          puts "=> Watching for file changes (polling)..."
+          pid = nil
+
+          start = -> {
+            pid = Process.spawn(
+              {"WHOOSH_PORT" => port.to_s, "WHOOSH_HOST" => host},
+              RbConfig.ruby, "-e",
+              "require 'rackup'; app, _ = Rack::Builder.parse_file('#{config_ru || "config.ru"}'); Rackup::Server.start(app: app, Port: #{port}, Host: '#{host}')"
+            )
+          }
+
+          start.call
+          trap("INT") { Process.kill("TERM", pid) rescue nil; exit 0 }
+          trap("TERM") { Process.kill("TERM", pid) rescue nil; exit 0 }
+
+          mtimes = {}
+          loop do
+            sleep 1.5
+            changed = false
+            Dir.glob("{**/*.rb,config/**/*.yml}").each do |f|
+              mt = File.mtime(f) rescue next
+              if mtimes[f] && mtimes[f] != mt
+                puts "=> Changed: #{f}, restarting..."
+                changed = true
+              end
+              mtimes[f] = mt
+            end
+            if changed
+              Process.kill("TERM", pid) rescue nil
+              Process.wait(pid) rescue nil
+              start.call
+            end
+          end
+          return
+        end
 
         # Load the app
         if File.exist?(config_ru)
