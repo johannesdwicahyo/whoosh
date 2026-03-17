@@ -210,24 +210,25 @@ module Whoosh
     # --- Streaming helpers ---
 
     def stream(type, &block)
-      io = StringIO.new
       case type
       when :sse
-        sse = Streaming::SSE.new(io)
-        block.call(sse)
-        io.rewind
-        [200, Streaming::SSE.headers, [io.read]]
+        body = Streaming::StreamBody.new do |out|
+          sse = Streaming::SSE.new(out)
+          block.call(sse)
+        end
+        [200, Streaming::SSE.headers, body]
       else
         raise ArgumentError, "Unknown stream type: #{type}"
       end
     end
 
     def stream_llm(&block)
-      io = StringIO.new
-      llm_stream = Streaming::LlmStream.new(io)
-      block.call(llm_stream)
-      io.rewind
-      [200, Streaming::LlmStream.headers, [io.read]]
+      body = Streaming::StreamBody.new do |out|
+        llm_stream = Streaming::LlmStream.new(out)
+        block.call(llm_stream)
+        llm_stream.finish
+      end
+      [200, Streaming::LlmStream.headers, body]
     end
 
     # --- Endpoint loading ---

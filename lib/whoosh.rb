@@ -58,9 +58,10 @@ module Whoosh
   end
 
   module Streaming
-    autoload :SSE,       "whoosh/streaming/sse"
-    autoload :WebSocket, "whoosh/streaming/websocket"
-    autoload :LlmStream, "whoosh/streaming/llm_stream"
+    autoload :SSE,        "whoosh/streaming/sse"
+    autoload :WebSocket,  "whoosh/streaming/websocket"
+    autoload :LlmStream,  "whoosh/streaming/llm_stream"
+    autoload :StreamBody, "whoosh/streaming/stream_body"
   end
 
   module OpenAPI
