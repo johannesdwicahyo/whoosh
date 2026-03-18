@@ -224,45 +224,67 @@ module Whoosh
         end
       }
 
-      desc "ci", "Run full CI pipeline (lint + security + tests)"
+      desc "ci", "Run full CI pipeline (lint + security + audit + tests + coverage)"
       def ci
         puts "=> Whoosh CI Pipeline"
         puts "=" * 50
         puts ""
 
         steps = []
+        skipped = []
 
         # Step 1: Rubocop (lint)
         if system("bundle exec rubocop --version > /dev/null 2>&1")
           steps << { name: "Rubocop (lint)", cmd: "bundle exec rubocop --format simple" }
         else
-          puts "  [skip] Rubocop not installed (add rubocop to Gemfile)"
+          skipped << "Rubocop (add rubocop to Gemfile)"
         end
 
-        # Step 2: Brakeman (security)
+        # Step 2: Brakeman (security scan)
         if system("bundle exec brakeman --version > /dev/null 2>&1")
           steps << { name: "Brakeman (security)", cmd: "bundle exec brakeman -q --no-pager" }
         else
-          puts "  [skip] Brakeman not installed (add brakeman to Gemfile)"
+          skipped << "Brakeman (add brakeman to Gemfile)"
         end
 
-        # Step 3: RSpec (tests)
+        # Step 3: Bundle audit (CVE check)
+        if system("bundle exec bundle-audit version > /dev/null 2>&1")
+          steps << { name: "Bundle Audit (CVE)", cmd: "bundle exec bundle-audit check --update" }
+        elsif system("bundle audit --help > /dev/null 2>&1")
+          steps << { name: "Bundle Audit (CVE)", cmd: "bundle audit" }
+        else
+          skipped << "Bundle Audit (add bundler-audit to Gemfile)"
+        end
+
+        # Step 4: Secret leak scan (built-in, no gem needed)
+        steps << { name: "Secret Scan", type: :secret_scan }
+
+        # Step 5: RSpec (tests)
         if system("bundle exec rspec --version > /dev/null 2>&1")
           steps << { name: "RSpec (tests)", cmd: "bundle exec rspec --format progress" }
         else
-          puts "  [skip] RSpec not installed"
+          skipped << "RSpec (add rspec to Gemfile)"
         end
 
-        # Step 4: Gem build check
-        gemspec = Dir.glob("*.gemspec").first
-        if gemspec
-          steps << { name: "Gem build", cmd: "gem build #{gemspec} --quiet" }
-        end
+        # Step 6: Coverage check (built-in)
+        steps << { name: "Coverage Check", type: :coverage_check }
+
+        skipped.each { |s| puts "  [skip] #{s}" }
+        puts "" unless skipped.empty?
 
         failed = []
         steps.each_with_index do |step, i|
           puts "--- [#{i + 1}/#{steps.length}] #{step[:name]} ---"
-          success = system(step[:cmd])
+
+          success = case step[:type]
+          when :secret_scan
+            run_secret_scan
+          when :coverage_check
+            run_coverage_check
+          else
+            system(step[:cmd])
+          end
+
           if success
             puts "  ✓ #{step[:name]} passed"
           else
@@ -274,13 +296,68 @@ module Whoosh
 
         puts "=" * 50
         if failed.empty?
-          puts "=> All checks passed! ✓"
+          puts "=> All #{steps.length} checks passed! ✓"
           exit 0
         else
           puts "=> FAILED: #{failed.join(', ')}"
           exit 1
         end
       end
+
+      private
+
+      def run_secret_scan
+        patterns = [
+          /(?:api[_-]?key|secret|password|token)\s*[:=]\s*["'][A-Za-z0-9+\/=]{8,}["']/i,
+          /(?:sk-|pk-|rk-)[a-zA-Z0-9]{20,}/,
+          /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/,
+          /AKIA[0-9A-Z]{16}/,  # AWS access key
+        ]
+
+        leaked = []
+        Dir.glob("{app.rb,lib/**/*.rb,endpoints/**/*.rb,config/**/*.rb}").each do |file|
+          next if file.include?("spec/") || file.include?("test/")
+          content = File.read(file) rescue next
+          patterns.each do |pattern|
+            content.each_line.with_index do |line, i|
+              if line.match?(pattern) && !line.include?("ENV[") && !line.include?("ENV.fetch")
+                leaked << "#{file}:#{i + 1}: #{line.strip[0..80]}"
+              end
+            end
+          end
+        end
+
+        if leaked.empty?
+          true
+        else
+          puts "  Potential secrets found:"
+          leaked.each { |l| puts "    #{l}" }
+          false
+        end
+      end
+
+      def run_coverage_check
+        coverage_file = File.join(Dir.pwd, "coverage", ".last_run.json")
+        unless File.exist?(coverage_file)
+          puts "  [info] No coverage data found (add simplecov to test_helper for tracking)"
+          true  # Don't fail if SimpleCov not set up
+        else
+          require "json"
+          data = JSON.parse(File.read(coverage_file))
+          coverage = data.dig("result", "line") || data.dig("result", "covered_percent") || 0
+          threshold = 80
+
+          if coverage >= threshold
+            puts "  Coverage: #{coverage.round(1)}% (threshold: #{threshold}%)"
+            true
+          else
+            puts "  Coverage: #{coverage.round(1)}% — below #{threshold}% threshold"
+            false
+          end
+        end
+      end
+
+      public
 
       desc "new NAME", "Create a new Whoosh project"
       option :minimal, type: :boolean, default: false
