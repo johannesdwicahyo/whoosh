@@ -33,6 +33,7 @@ module Whoosh
         write(dir, ".dockerignore", dockerignore)
         write(dir, ".rubocop.yml", rubocop_config)
         write(dir, "README.md", readme(name))
+        write(dir, "CLAUDE.md", claude_md(name))
 
         # Create empty SQLite DB directory
         FileUtils.mkdir_p(File.join(dir, "db"))
@@ -404,6 +405,180 @@ module Whoosh
             *.gem
             .DS_Store
           IGNORE
+        end
+
+        def claude_md(name)
+          title = name.gsub(/[-_]/, " ").split.map(&:capitalize).join(" ")
+          <<~MD
+            # #{title}
+
+            ## Framework
+
+            Built with [Whoosh](https://github.com/johannesdwicahyo/whoosh) — AI-first Ruby API framework.
+
+            ## Commands
+
+            ```bash
+            whoosh s                    # start server (http://localhost:9292)
+            whoosh s --reload           # hot reload on file changes
+            whoosh ci                   # run lint + security + tests
+            whoosh routes               # list all routes
+            whoosh describe             # dump app structure as JSON
+            whoosh check                # validate configuration
+            whoosh console              # IRB with app loaded
+            whoosh mcp --list           # list MCP tools
+            whoosh worker               # start background job worker
+            bundle exec rspec           # run tests
+            ```
+
+            ## Project Structure
+
+            ```
+            app.rb              # main app — routes, auth, config
+            config.ru           # Rack entry point
+            config/app.yml      # configuration (database, cache, jobs, logging)
+            config/plugins.yml  # plugin configuration
+            endpoints/          # class-based endpoints (auto-loaded)
+            schemas/            # request/response schemas (dry-schema)
+            models/             # Sequel models
+            db/migrations/      # database migrations
+            middleware/         # custom middleware
+            test/               # RSpec tests
+            .env                # secrets (never commit)
+            ```
+
+            ## Patterns
+
+            ### Adding an endpoint
+
+            ```bash
+            whoosh generate endpoint users name:string email:string
+            ```
+
+            Or manually:
+
+            ```ruby
+            # endpoints/users.rb
+            class UsersEndpoint < Whoosh::Endpoint
+              get "/users"
+              post "/users", request: CreateUserSchema
+
+              def call(req)
+                case req.method
+                when "GET" then { users: [] }
+                when "POST" then { created: true }
+                end
+              end
+            end
+            ```
+
+            ### Adding a schema
+
+            ```ruby
+            # schemas/user.rb
+            class CreateUserSchema < Whoosh::Schema
+              field :name,  String,  required: true, desc: "User name"
+              field :email, String,  required: true, desc: "Email"
+              field :age,   Integer, min: 0, max: 150
+            end
+            ```
+
+            ### Inline routes (in app.rb)
+
+            ```ruby
+            App.get "/health" do
+              { status: "ok" }
+            end
+
+            App.post "/items", request: ItemSchema, auth: :api_key do |req|
+              { created: req.body[:name] }
+            end
+            ```
+
+            ### Auth
+
+            Protected routes use `auth: :api_key` or `auth: :jwt`:
+            ```ruby
+            App.get "/protected", auth: :api_key do |req|
+              { user: req.env["whoosh.auth"][:key] }
+            end
+            ```
+
+            ### Background jobs
+
+            ```ruby
+            class MyJob < Whoosh::Job
+              inject :db  # DI injection
+              queue :default
+              retry_limit 3
+              retry_backoff :exponential
+
+              def perform(user_id:)
+                { done: true }
+              end
+            end
+
+            MyJob.perform_async(user_id: 42)
+            MyJob.perform_in(3600, user_id: 42)  # 1 hour delay
+            ```
+
+            ### Streaming (SSE/LLM)
+
+            ```ruby
+            App.post "/chat" do |req|
+              stream_llm do |out|
+                out << "Hello "
+                out << "World"
+                out.finish
+              end
+            end
+            ```
+
+            ### MCP tools
+
+            Routes with `mcp: true` are auto-exposed as MCP tools:
+            ```ruby
+            App.post "/analyze", mcp: true, request: AnalyzeSchema do |req|
+              { result: "analyzed" }
+            end
+            ```
+
+            ### Testing
+
+            ```ruby
+            require "whoosh/test"
+            RSpec.describe "API" do
+              include Whoosh::Test
+              def app = App.to_rack
+
+              it "works" do
+                post_json "/items", { name: "test" }
+                assert_response 200
+                assert_json(name: "test")
+              end
+            end
+            ```
+
+            ## AI Introspection
+
+            ```bash
+            whoosh describe              # full app structure as JSON
+            whoosh describe --routes     # routes with schemas
+            whoosh describe --schemas    # all schema definitions
+            ```
+
+            ## Configuration
+
+            All config in `config/app.yml`. Environment variables override YAML.
+            Secrets in `.env` (auto-loaded at boot, never committed).
+
+            ## Response Format
+
+            Simple flat JSON. Not JSON:API.
+            - Success: `{"name": "Alice"}`
+            - Error: `{"error": "validation_failed", "details": [...]}`
+            - Pagination: `{"data": [...], "pagination": {"page": 1}}`
+          MD
         end
 
         def readme(name)

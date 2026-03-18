@@ -33,12 +33,21 @@ RSpec.describe "App MCP integration" do
       end
     end
 
-    it "registers mcp: true routes as MCP tools" do
+    it "auto-exposes all routes as MCP tools" do
       application.to_rack
       tools = application.mcp_server.list_tools
       tool_names = tools.map { |t| t[:name] }
       expect(tool_names).to include("POST /summarize")
-      expect(tool_names).not_to include("GET /health")
+      expect(tool_names).to include("GET /health")
+    end
+
+    it "excludes routes with mcp: false" do
+      application.get "/internal", mcp: false do
+        { internal: true }
+      end
+      application.to_rack
+      tool_names = application.mcp_server.list_tools.map { |t| t[:name] }
+      expect(tool_names).not_to include("GET /internal")
     end
 
     it "MCP tools invoke the endpoint handler" do

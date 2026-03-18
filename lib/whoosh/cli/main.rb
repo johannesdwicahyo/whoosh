@@ -92,17 +92,166 @@ module Whoosh
 
       desc "routes", "List all registered routes"
       def routes
+        app = load_app
+        return unless app
+        app.routes.each { |r| puts "  #{r[:method].ljust(8)} #{r[:path]}" }
+      end
+
+      desc "describe", "Dump app structure as JSON (AI-friendly introspection)"
+      option :routes, type: :boolean, default: false, desc: "Routes only"
+      option :schemas, type: :boolean, default: false, desc: "Schemas only"
+      def describe
+        app = load_app
+        return unless app
+        app.to_rack # ensure everything is built
+
+        output = {}
+
+        unless options[:schemas]
+          output[:routes] = app.routes.map do |r|
+            match = app.instance_variable_get(:@router).match(r[:method], r[:path])
+            handler = match[:handler] if match
+            route_info = {
+              method: r[:method],
+              path: r[:path],
+              auth: r[:metadata]&.dig(:auth),
+              mcp: r[:metadata]&.dig(:mcp) || false
+            }
+            if handler && handler[:request_schema]
+              route_info[:request_schema] = OpenAPI::SchemaConverter.convert(handler[:request_schema])
+            end
+            if handler && handler[:response_schema]
+              route_info[:response_schema] = OpenAPI::SchemaConverter.convert(handler[:response_schema])
+            end
+            route_info
+          end
+        end
+
+        unless options[:routes]
+          # Collect all Schema subclasses
+          schemas = {}
+          ObjectSpace.each_object(Class).select { |k| k < Schema && k != Schema }.each do |klass|
+            schemas[klass.name] = OpenAPI::SchemaConverter.convert(klass) if klass.name
+          end
+          output[:schemas] = schemas unless schemas.empty?
+        end
+
+        output[:config] = {
+          app_name: app.config.app_name,
+          port: app.config.port,
+          env: app.config.env,
+          docs_enabled: app.config.docs_enabled?,
+          auth_configured: !!app.authenticator,
+          rate_limit_configured: !!app.rate_limiter_instance,
+          mcp_tools: app.mcp_server.list_tools.map { |t| t[:name] }
+        }
+
+        output[:framework] = {
+          version: Whoosh::VERSION,
+          ruby: RUBY_VERSION,
+          yjit: Performance.yjit_enabled?,
+          json_engine: Serialization::Json.engine
+        }
+
+        puts JSON.pretty_generate(output)
+      end
+
+      desc "check", "Validate app configuration and catch common mistakes"
+      def check
         app_file = File.join(Dir.pwd, "app.rb")
         unless File.exist?(app_file)
-          puts "Error: app.rb not found in #{Dir.pwd}"
+          puts "✗ No app.rb found"
           exit 1
         end
-        require app_file
-        app = ObjectSpace.each_object(Whoosh::App).first
-        if app
-          app.routes.each { |r| puts "  #{r[:method].ljust(8)} #{r[:path]}" }
+
+        puts "=> Whoosh App Check"
+        puts ""
+
+        issues = []
+        warnings = []
+
+        # Check .env
+        if File.exist?(".env")
+          env_content = File.read(".env")
+          if env_content.include?("change_me") || env_content.include?("CHANGE_ME")
+            issues << "JWT_SECRET in .env still has default value — run: ruby -e \"puts SecureRandom.hex(32)\""
+          end
         else
-          puts "No Whoosh::App instance found"
+          warnings << "No .env file — copy .env.example to .env"
+        end
+
+        # Check .gitignore includes .env
+        if File.exist?(".gitignore")
+          unless File.read(".gitignore").include?(".env")
+            issues << ".gitignore does not exclude .env — secrets may be committed"
+          end
+        else
+          warnings << "No .gitignore file"
+        end
+
+        # Load and validate the app
+        begin
+          require app_file
+          app = ObjectSpace.each_object(Whoosh::App).first
+          if app
+            puts "  ✓ App loads successfully"
+
+            # Check auth
+            if app.authenticator
+              puts "  ✓ Auth configured"
+            else
+              warnings << "No auth configured — API is open to everyone"
+            end
+
+            # Check rate limiting
+            if app.rate_limiter_instance
+              puts "  ✓ Rate limiting configured"
+            else
+              warnings << "No rate limiting — vulnerable to abuse"
+            end
+
+            # Check routes
+            route_count = app.routes.length
+            puts "  ✓ #{route_count} routes registered"
+
+            # Check MCP
+            app.to_rack
+            mcp_count = app.mcp_server.list_tools.length
+            puts "  ✓ #{mcp_count} MCP tools"
+
+          else
+            issues << "No Whoosh::App instance found in app.rb"
+          end
+        rescue => e
+          issues << "App failed to load: #{e.message}"
+        end
+
+        # Check dependencies
+        puts ""
+        %w[falcon oj sequel].each do |gem_name|
+          begin
+            require gem_name
+            puts "  ✓ #{gem_name} available"
+          rescue LoadError
+            label = case gem_name
+            when "falcon" then "(recommended server)"
+            when "oj" then "(5-10x faster JSON)"
+            when "sequel" then "(database)"
+            end
+            warnings << "#{gem_name} not installed #{label}"
+          end
+        end
+
+        # Report
+        puts ""
+        if issues.empty? && warnings.empty?
+          puts "=> All checks passed! ✓"
+        else
+          issues.each { |i| puts "  ✗ #{i}" }
+          warnings.each { |w| puts "  ⚠ #{w}" }
+          puts ""
+          puts issues.empty? ? "=> #{warnings.length} warning(s)" : "=> #{issues.length} issue(s), #{warnings.length} warning(s)"
+          exit 1 unless issues.empty?
         end
       end
 
@@ -305,6 +454,21 @@ module Whoosh
       end
 
       private
+
+      def load_app
+        app_file = File.join(Dir.pwd, "app.rb")
+        unless File.exist?(app_file)
+          puts "Error: app.rb not found in #{Dir.pwd}"
+          return nil
+        end
+        require app_file
+        app = ObjectSpace.each_object(Whoosh::App).first
+        unless app
+          puts "Error: No Whoosh::App instance found"
+          return nil
+        end
+        app
+      end
 
       def run_secret_scan
         patterns = [

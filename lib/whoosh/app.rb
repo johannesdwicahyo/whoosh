@@ -30,6 +30,7 @@ module Whoosh
       auto_register_storage
       auto_register_http
       auto_register_vectors
+      auto_register_ai
       auto_configure_jobs
       @metrics = Metrics.new
       auto_register_metrics
@@ -307,6 +308,10 @@ module Whoosh
       @di.provide(:vectors) { VectorStore.build(@config.data) }
     end
 
+    def auto_register_ai
+      @di.provide(:llm) { AI.build(@config.data) }
+    end
+
     def auto_configure_jobs
       backend = Jobs.build_backend(@config.data)
       Jobs.configure(backend: backend, di: @di)
@@ -448,8 +453,12 @@ module Whoosh
     end
 
     def register_mcp_tools
+      internal_paths = %w[/openapi.json /docs /redoc /metrics /healthz]
+
       @router.routes.each do |route|
-        next unless route[:metadata] && route[:metadata][:mcp]
+        # Auto-expose all routes as MCP tools (opt-out with mcp: false)
+        next if route[:metadata] && route[:metadata][:mcp] == false
+        next if internal_paths.include?(route[:path])
 
         tool_name = "#{route[:method]} #{route[:path]}"
         match = @router.match(route[:method], route[:path])
