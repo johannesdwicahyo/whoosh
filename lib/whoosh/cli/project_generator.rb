@@ -31,6 +31,7 @@ module Whoosh
         write(dir, ".rspec", rspec_config)
         write(dir, "Dockerfile", dockerfile)
         write(dir, ".dockerignore", dockerignore)
+        write(dir, ".rubocop.yml", rubocop_config)
         write(dir, "README.md", readme(name))
 
         # Create empty SQLite DB directory
@@ -54,6 +55,8 @@ module Whoosh
         puts "  http://localhost:9292/healthz   # health probes"
         puts "  http://localhost:9292/docs      # Swagger UI"
         puts "  http://localhost:9292/metrics   # Prometheus metrics"
+        puts ""
+        puts "  whoosh ci           # run lint + security + tests"
         puts ""
       end
 
@@ -145,6 +148,8 @@ module Whoosh
             group :development, :test do
               gem "rspec"
               gem "rack-test"
+              gem "rubocop", require: false
+              gem "brakeman", require: false
             end
           GEM
 
@@ -347,6 +352,35 @@ module Whoosh
             # Start with Falcon for best performance
             CMD ["bundle", "exec", "whoosh", "s", "-p", "9292", "--host", "0.0.0.0"]
           DOCKERFILE
+        end
+
+        def rubocop_config
+          <<~YAML
+            AllCops:
+              TargetRubyVersion: 3.4
+              NewCops: enable
+              SuggestExtensions: false
+              Exclude:
+                - db/migrations/**/*
+                - vendor/**/*
+
+            Style/FrozenStringLiteralComment:
+              Enabled: true
+
+            Style/StringLiterals:
+              EnforcedStyle: double_quotes
+
+            Layout/LineLength:
+              Max: 120
+
+            Metrics/MethodLength:
+              Max: 25
+
+            Metrics/BlockLength:
+              Exclude:
+                - spec/**/*
+                - test/**/*
+          YAML
         end
 
         def dockerignore

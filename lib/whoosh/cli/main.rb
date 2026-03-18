@@ -224,6 +224,64 @@ module Whoosh
         end
       }
 
+      desc "ci", "Run full CI pipeline (lint + security + tests)"
+      def ci
+        puts "=> Whoosh CI Pipeline"
+        puts "=" * 50
+        puts ""
+
+        steps = []
+
+        # Step 1: Rubocop (lint)
+        if system("bundle exec rubocop --version > /dev/null 2>&1")
+          steps << { name: "Rubocop (lint)", cmd: "bundle exec rubocop --format simple" }
+        else
+          puts "  [skip] Rubocop not installed (add rubocop to Gemfile)"
+        end
+
+        # Step 2: Brakeman (security)
+        if system("bundle exec brakeman --version > /dev/null 2>&1")
+          steps << { name: "Brakeman (security)", cmd: "bundle exec brakeman -q --no-pager" }
+        else
+          puts "  [skip] Brakeman not installed (add brakeman to Gemfile)"
+        end
+
+        # Step 3: RSpec (tests)
+        if system("bundle exec rspec --version > /dev/null 2>&1")
+          steps << { name: "RSpec (tests)", cmd: "bundle exec rspec --format progress" }
+        else
+          puts "  [skip] RSpec not installed"
+        end
+
+        # Step 4: Gem build check
+        gemspec = Dir.glob("*.gemspec").first
+        if gemspec
+          steps << { name: "Gem build", cmd: "gem build #{gemspec} --quiet" }
+        end
+
+        failed = []
+        steps.each_with_index do |step, i|
+          puts "--- [#{i + 1}/#{steps.length}] #{step[:name]} ---"
+          success = system(step[:cmd])
+          if success
+            puts "  ✓ #{step[:name]} passed"
+          else
+            puts "  ✗ #{step[:name]} FAILED"
+            failed << step[:name]
+          end
+          puts ""
+        end
+
+        puts "=" * 50
+        if failed.empty?
+          puts "=> All checks passed! ✓"
+          exit 0
+        else
+          puts "=> FAILED: #{failed.join(', ')}"
+          exit 1
+        end
+      end
+
       desc "new NAME", "Create a new Whoosh project"
       option :minimal, type: :boolean, default: false
       option :full, type: :boolean, default: false
