@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/ruby-%3E%3D%203.4.0-red" alt="Ruby">
   <img src="https://img.shields.io/badge/rack-3.0-blue" alt="Rack">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/tests-509%20passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-539%20passing-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/overhead-2.5%C2%B5s-orange" alt="Performance">
 </p>
 
@@ -21,11 +21,11 @@
 
 ## Why Whoosh?
 
-- **AI-first** — MCP server built-in, LLM streaming, token tracking, plugin auto-discovery for 18+ AI gems
-- **Fast** — 2.5µs framework overhead, 406K req/s on simple JSON, YJIT + Oj auto-enabled
-- **Batteries included** — Auth, rate limiting, caching, background jobs, file uploads, pagination, metrics
-- **Zero config to start** — `whoosh new myapp && cd myapp && whoosh s`
-- **OpenAPI 3.1** — Swagger UI + ReDoc auto-generated from your routes and schemas
+- **AI-first** — Every app is an MCP server automatically. LLM wrapper with structured output, caching, and streaming. Vector search built-in. 18+ AI gem auto-discovery.
+- **Fast** — 2.5µs framework overhead, 87K req/s with Falcon. Beats Fastify on multi-worker PostgreSQL benchmarks.
+- **Batteries included** — Auth, rate limiting, caching, background jobs, file uploads, vector search, pagination, metrics, CI pipeline.
+- **Zero config to start** — `whoosh new myapp && cd myapp && whoosh s` — everything works.
+- **AI-agent friendly** — `whoosh describe` dumps your app as JSON for AI tools. Generated `CLAUDE.md` in every project. `whoosh check` catches mistakes before runtime.
 
 ## Install
 
@@ -130,6 +130,45 @@ app.access_control do
 end
 ```
 
+### AI / LLM Integration
+
+```ruby
+# Chat with any LLM (auto-detects ruby_llm gem)
+app.post "/chat" do |req, llm:|
+  { reply: llm.chat(req.body["message"]) }
+end
+
+# Structured output — LLM returns validated JSON
+app.post "/extract" do |req, llm:|
+  data = llm.extract(req.body["text"], schema: InvoiceSchema)
+  { invoice: data }
+end
+
+# RAG in 3 lines
+app.post "/ask" do |req, vectors:, llm:|
+  context = vectors.search("knowledge", vector: embed(req.body["q"]), limit: 5)
+  { answer: llm.chat(req.body["q"], system: "Context: #{context}") }
+end
+```
+
+### Vector Search
+
+```ruby
+app.post "/index" do |req, vectors:|
+  vectors.insert("docs", id: req.body["id"],
+    vector: req.body["embedding"],
+    metadata: { title: req.body["title"] })
+  { indexed: true }
+end
+
+app.post "/search" do |req, vectors:|
+  results = vectors.search("docs", vector: req.body["embedding"], limit: 10)
+  { results: results }
+end
+```
+
+In-memory by default (cosine similarity). Install `zvec` gem for production-grade HNSW index.
+
 ### LLM Streaming (OpenAI-compatible)
 
 ```ruby
@@ -153,16 +192,21 @@ end
 
 ### MCP (Model Context Protocol)
 
+**Every route is automatically an MCP tool.** No `mcp: true` needed.
+
 ```ruby
-# Any route with mcp: true becomes an MCP tool automatically
-app.post "/summarize", mcp: true, request: SummarizeRequest do |req|
+# These are all MCP tools automatically:
+app.post "/summarize", request: SummarizeRequest do |req|
   { summary: llm.summarize(req.body[:text]) }
 end
 
-# Groups propagate mcp: true to all child routes
-app.group "/tools", mcp: true do
-  post("/translate") { |req| { result: translate(req.body[:text]) } }
-  post("/analyze")   { |req| { result: analyze(req.body[:text]) } }
+app.post "/translate" do |req|
+  { result: translate(req.body["text"]) }
+end
+
+# Opt OUT with mcp: false for internal routes:
+app.get "/internal", mcp: false do
+  { debug: "not exposed as MCP tool" }
 end
 ```
 
@@ -319,9 +363,13 @@ whoosh new my_api             # scaffold project (with Dockerfile)
 whoosh s                      # start server (like rails s)
 whoosh s --reload             # hot reload on file changes
 whoosh routes                 # list all routes
+whoosh describe               # dump app as JSON (AI-friendly)
+whoosh check                  # validate config, catch mistakes
 whoosh console                # IRB with app loaded
+whoosh ci                     # lint + security + audit + tests + coverage
 whoosh worker                 # background job worker
 whoosh mcp                    # MCP stdio server
+whoosh mcp --list             # list all MCP tools
 
 whoosh generate endpoint chat       # endpoint + schema + test
 whoosh generate schema User         # schema file
@@ -333,6 +381,22 @@ whoosh generate proto ChatRequest   # .proto file
 whoosh db migrate             # run migrations
 whoosh db rollback            # rollback
 whoosh db status              # migration status
+```
+
+## AI Agent DX
+
+Every `whoosh new` project includes a `CLAUDE.md` with all framework patterns, commands, and conventions — so AI agents (Claude Code, Cursor, Copilot) can build with Whoosh immediately.
+
+```bash
+# Dump your entire app structure as JSON (routes, schemas, config, MCP tools)
+whoosh describe
+
+# AI tools can consume this to understand your API
+whoosh describe --routes     # routes with request/response schemas
+whoosh describe --schemas    # all schema definitions
+
+# Catch mistakes before runtime
+whoosh check                 # validates config, auth, dependencies
 ```
 
 ## Performance
