@@ -463,10 +463,14 @@ RSpec.describe "Full Whoosh App integration", type: :integration do
       expect(names).to include("POST /summarize")
     end
 
-    it "does not register non-mcp routes as tools" do
+    it "auto-exposes all routes as MCP tools (opt-out with mcp: false)" do
       tools = application.mcp_server.list_tools
       names = tools.map { |t| t[:name] }
-      expect(names).not_to include("GET /health")
+      # All user routes are auto-exposed
+      expect(names).to include("GET /health")
+      # Internal routes are excluded
+      expect(names).not_to include("GET /metrics")
+      expect(names).not_to include("GET /docs")
     end
 
     it "MCP tool can be invoked via the MCP server" do

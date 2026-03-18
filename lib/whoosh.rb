@@ -28,6 +28,7 @@ module Whoosh
   autoload :Jobs,                "whoosh/jobs"
   autoload :Metrics,             "whoosh/metrics"
   autoload :Paginate,            "whoosh/paginate"
+  autoload :AI,                  "whoosh/ai"
   autoload :VectorStore,         "whoosh/vector_store"
 
   module Auth
