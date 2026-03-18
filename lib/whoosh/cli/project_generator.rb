@@ -150,6 +150,8 @@ module Whoosh
               gem "rack-test"
               gem "rubocop", require: false
               gem "brakeman", require: false
+              gem "bundler-audit", require: false
+              gem "simplecov", require: false
             end
           GEM
 
@@ -255,6 +257,13 @@ module Whoosh
         def test_helper
           <<~RUBY
             # frozen_string_literal: true
+
+            require "simplecov"
+            SimpleCov.start do
+              add_filter "/test/"
+              add_filter "/spec/"
+              minimum_coverage 80
+            end
 
             require "whoosh/test"
             require_relative "../app"
