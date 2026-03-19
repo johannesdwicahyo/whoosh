@@ -235,6 +235,13 @@ module Whoosh
       [200, Streaming::LlmStream.headers, body]
     end
 
+    # WebSocket endpoint helper — use in handle_request, returns hijack response
+    def websocket(env, &block)
+      ws = Streaming::WebSocket.new(env)
+      block.call(ws)
+      ws.rack_response
+    end
+
     def paginate(collection, page:, per_page: 20)
       Paginate.offset(collection, page: page, per_page: per_page)
     end
