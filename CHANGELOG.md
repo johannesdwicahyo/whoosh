@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-03-20
+
+### Fixed
+- Real WebSocket support with RFC 6455 protocol (handshake, frame encoding/decoding)
+- Works with Puma (`rack.hijack`) and Falcon in development
+- `websocket(env)` helper available in endpoints
+- Proper close frames, ping/pong, masked frame handling
+
 ## [1.3.0] - 2026-03-18
 
 ### Added — AI First-Class Citizen
