@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-03-18
+
+### Added — AI First-Class Citizen
+- `Whoosh::AI::LLM` — chat, extract (structured output), stream with response caching
+- `Whoosh::AI::StructuredOutput` — validate LLM output against Whoosh::Schema
+- `whoosh describe` — dump entire app as structured JSON (AI-agent friendly)
+- `whoosh check` — validate config, catch common mistakes before runtime
+- Generated `CLAUDE.md` in every `whoosh new` project
+- All routes auto-exposed as MCP tools (opt-out with `mcp: false`)
+- Available as `llm` in endpoints via DI
+- 539 tests, 0 failures
+
+## [1.2.2] - 2026-03-18
+
+### Upgraded
+- `whoosh ci` expanded to 6 checks: Rubocop, Brakeman, Bundle Audit, Secret Scan, RSpec, Coverage
+- Secret scan built-in (no gem needed) — detects hardcoded API keys, AWS keys, private keys
+- SimpleCov coverage threshold (80% minimum)
+
+## [1.2.1] - 2026-03-18
+
+### Added
+- `whoosh ci` command — Rubocop + Brakeman + RSpec pipeline
+- Project generator includes rubocop, brakeman, .rubocop.yml
+
+## [1.2.0] - 2026-03-17
+
+### Added
+- VectorStore with cosine similarity search (insert, search, delete, count, drop)
+- Auto-detect: zvec gem installed → uses zvec, otherwise → in-memory
+- Available as `vectors` in endpoints via DI
+
+## [1.1.0] - 2026-03-17
+
+### Added
+- `perform_in(delay)` and `perform_at(time)` for scheduled jobs
+- Named queues via `queue :critical` class DSL
+- Per-job retry: `retry_limit`, `retry_backoff :exponential`
+- Non-blocking retry (re-enqueue with delay timestamp)
+- Per-job logging (started, completed, retry, failed)
+- Redis backend for jobs with sorted sets for scheduling
+- Auto-detect pattern: `REDIS_URL` → Redis, otherwise → Memory (jobs + cache)
+- 521 tests, 0 failures
+
+## [1.0.1] - 2026-03-16
+
+### Added
+- Whoosh::Test DSL (assert_response, assert_json, post_json, get_with_auth)
+- Generator field args, `generate plugin`, `generate proto`
+- `whoosh db` CLI (migrate/rollback/status)
+- OAuth2 auth strategy with custom validator
+- MCP stdio transport, group mcp propagation
+- Response schema validation (advisory, development only)
+- `app.docs` DSL with ReDoc at `/redoc`
+- Graceful shutdown wired into App
+- Batteries-included project generator (Falcon, Oj, JWT, rate limiting)
+- `whoosh s` works like `rails s`
+
+### Fixed
+- Request body.rewind for WEBrick compatibility
+
 ## [1.0.0] - 2026-03-16
 
 ### Stable Release
