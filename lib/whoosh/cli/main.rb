@@ -85,9 +85,39 @@ module Whoosh
           rack_app = whoosh_app.to_rack
         end
 
-        # Start server — try Falcon first, then Puma, then WEBrick
+        # Auto-detect server based on platform
+        # macOS: Puma (threads) — Falcon forks crash due to ObjC runtime + native C extensions
+        # Linux: Falcon (fibers) — faster async I/O, no fork issue
         require "rackup"
-        Rackup::Server.start(app: rack_app, Port: port, Host: host)
+        server_opts = { app: rack_app, Port: port, Host: host }
+
+        if RUBY_PLATFORM.include?("darwin")
+          # Force Puma on macOS to avoid fork crashes
+          begin
+            require "puma"
+            server_opts[:server] = "puma"
+            puts "=> Using Puma (macOS — Falcon forks are unsafe here)"
+          rescue LoadError
+            puts "=> Using default server (install puma for best macOS experience)"
+          end
+        else
+          # Linux: prefer Falcon for performance
+          begin
+            require "falcon"
+            server_opts[:server] = "falcon"
+            puts "=> Using Falcon (Linux — async fibers for best performance)"
+          rescue LoadError
+            begin
+              require "puma"
+              server_opts[:server] = "puma"
+              puts "=> Using Puma"
+            rescue LoadError
+              puts "=> Using default server"
+            end
+          end
+        end
+
+        Rackup::Server.start(**server_opts)
       end
 
       desc "routes", "List all registered routes"
