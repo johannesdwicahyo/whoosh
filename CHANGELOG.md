@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-03-20
+
+### Fixed
+- `whoosh s` auto-detects platform: Puma on macOS (dev), Falcon on Linux (production)
+- Falcon forks crash on macOS due to ObjC runtime + native C extensions (pg gem)
+- No manual server config needed — just `whoosh s` and it picks the right one
+
 ## [1.3.1] - 2026-03-20
 
 ### Fixed
