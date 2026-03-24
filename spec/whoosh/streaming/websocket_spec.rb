@@ -16,7 +16,7 @@ RSpec.describe Whoosh::Streaming::WebSocket do
 
     it "rejects non-WebSocket requests" do
       env = Rack::MockRequest.env_for("/test")
-      expect(Whoosh::Streaming::WebSocket.websocket?(env)).to be false
+      expect(Whoosh::Streaming::WebSocket.websocket?(env)).to be_falsey
     end
   end
 
