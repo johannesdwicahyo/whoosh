@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-03-24
+
+### Changed — Production WebSocket
+- Replaced hand-rolled RFC 6455 with `faye-websocket` (battle-tested, used by Rails ActionCable)
+- `faye-websocket` added as hard dependency (WebSocket is core for AI-first framework)
+- Works with Puma (macOS dev) and Falcon (Linux production)
+- Verified: full round-trip — open, send, receive, close with proper codes
+- 542 tests, 0 failures
+
 ## [1.3.2] - 2026-03-20
 
 ### Fixed
