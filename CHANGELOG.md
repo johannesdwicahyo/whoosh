@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-03-24
+
+### Fixed — WebSocket works on both Puma AND Falcon
+- Auto-detects server: Puma → faye-websocket, Falcon → async-websocket
+- `faye-websocket` uses EventMachine (conflicts with Falcon's async reactor)
+- `async-websocket` uses Async gem (native to Falcon)
+- Same `websocket(env)` API — app code is identical on both servers
+- Verified on Puma (macOS dev) and Falcon (Linux production)
+
 ## [1.4.0] - 2026-03-24
 
 ### Changed — Production WebSocket
