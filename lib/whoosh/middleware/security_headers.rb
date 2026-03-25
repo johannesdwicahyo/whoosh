@@ -10,7 +10,8 @@ module Whoosh
         "strict-transport-security" => "max-age=31536000; includeSubDomains",
         "x-download-options" => "noopen",
         "x-permitted-cross-domain-policies" => "none",
-        "referrer-policy" => "strict-origin-when-cross-origin"
+        "referrer-policy" => "strict-origin-when-cross-origin",
+        "content-security-policy" => "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
       }.freeze
 
       def initialize(app)
