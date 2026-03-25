@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-03-25
+
+### Added — FastAPI Parity (10 gaps closed, ~90% feature parity)
+- **Cookie helpers** — `req.cookies["session"]` reads cookies from request
+- **Redirect** — `redirect("/new")` and `redirect("/perm", status: 301)`
+- **Download** — `download(data, filename: "report.csv")`
+- **Static files** — `serve_static("/assets", root: "public/")` with path traversal protection
+- **Send file** — `send_file("path/to/file.pdf")`
+- **CSP header** — Content-Security-Policy in default security headers
+- **Middleware error handling** — compiled handler catches errors, returns JSON 500
+- **Custom validators** — `validate_with { |data, errors| ... }` DSL on schemas
+- **Query param docs** — `query: FilterSchema` documents params in OpenAPI spec
+- **OAuth2 providers** — Google, GitHub, Apple with authorize_url, exchange_code, userinfo
+- **Async HTTP** — `HTTP.concurrent(...)` for parallel requests, `HTTP.async.get(...)` for futures
+- 564 tests, 0 failures
+
 ## [1.4.1] - 2026-03-24
 
 ### Fixed — WebSocket works on both Puma AND Falcon
