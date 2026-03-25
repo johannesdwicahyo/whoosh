@@ -23,6 +23,16 @@ module Whoosh
         super
         subclass.instance_variable_set(:@fields, {})
         subclass.instance_variable_set(:@contract, nil)
+        subclass.instance_variable_set(:@custom_validators, [])
+      end
+
+      def validate_with(&block)
+        @custom_validators ||= []
+        @custom_validators << block
+      end
+
+      def custom_validators
+        @custom_validators || []
       end
 
       def field(name, type, **options)
@@ -76,6 +86,11 @@ module Whoosh
           if opts[:max] && value.is_a?(Numeric) && value > opts[:max]
             errors << { field: name, message: "must be less than or equal to #{opts[:max]}", value: value }
           end
+        end
+
+        # Third pass: custom validators
+        self.custom_validators.each do |validator|
+          validator.call(validated, errors)
         end
 
         return Result.new(data: nil, errors: errors) unless errors.empty?
