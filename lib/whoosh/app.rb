@@ -250,6 +250,31 @@ module Whoosh
       Paginate.cursor(collection, cursor: cursor, limit: limit, column: column)
     end
 
+    def redirect(url, status: 302)
+      Response.redirect(url, status: status)
+    end
+
+    def download(data, filename:, content_type: nil)
+      Response.download(data, filename: filename, content_type: content_type || "application/octet-stream")
+    end
+
+    def send_file(path, content_type: nil)
+      Response.file(path, content_type: content_type)
+    end
+
+    def serve_static(prefix, root:)
+      get "#{prefix}/:_static_path" do |req|
+        file_path = File.join(root, req.params[:_static_path])
+        real = File.realpath(file_path) rescue nil
+        real_root = File.realpath(root) rescue root
+        if real && real.start_with?(real_root) && File.file?(real)
+          Response.file(real)
+        else
+          Response.not_found
+        end
+      end
+    end
+
     # --- Endpoint loading ---
 
     def load_endpoints(dir)

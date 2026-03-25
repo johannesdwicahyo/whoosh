@@ -54,6 +54,16 @@ module Whoosh
       end
     end
 
+    def cookies
+      @cookies ||= begin
+        raw = @env["HTTP_COOKIE"] || ""
+        raw.split(";").each_with_object({}) do |pair, h|
+          k, v = pair.strip.split("=", 2)
+          h[k] = v if k
+        end
+      end
+    end
+
     def files
       @files ||= begin
         storage = @env["whoosh.storage"]
