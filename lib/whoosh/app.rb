@@ -694,6 +694,10 @@ module Whoosh
         @strategies[:jwt] = Auth::Jwt.new(secret: secret, algorithm: algorithm, expiry: expiry)
       end
 
+      def oauth2(provider: :custom, **opts)
+        @strategies[:oauth2] = Auth::OAuth2.new(provider: provider, **opts)
+      end
+
       def build
         @strategies.values.first
       end
