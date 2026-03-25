@@ -33,6 +33,22 @@ module Whoosh
         request(:delete, url, headers: headers, timeout: timeout)
       end
 
+      # Run multiple HTTP requests concurrently
+      def concurrent(*requests)
+        threads = requests.map do |req|
+          method = req[:method] || :get
+          url = req[:url]
+          opts = req.except(:method, :url)
+          Thread.new { send(method, url, **opts) }
+        end
+        threads.map(&:value)
+      end
+
+      # Returns an async client for non-blocking requests
+      def async
+        AsyncClient.new
+      end
+
       private
 
       def request(method, url, json: nil, body: nil, headers: {}, timeout: 30)
@@ -68,6 +84,14 @@ module Whoosh
         headers.each { |k, v| req[k] = v }
         req
       end
+    end
+
+    class AsyncClient
+      def get(url, **opts) = Thread.new { HTTP.get(url, **opts) }
+      def post(url, **opts) = Thread.new { HTTP.post(url, **opts) }
+      def put(url, **opts) = Thread.new { HTTP.put(url, **opts) }
+      def patch(url, **opts) = Thread.new { HTTP.patch(url, **opts) }
+      def delete(url, **opts) = Thread.new { HTTP.delete(url, **opts) }
     end
   end
 end
