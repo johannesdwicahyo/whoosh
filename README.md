@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/ruby-%3E%3D%203.4.0-red" alt="Ruby">
   <img src="https://img.shields.io/badge/rack-3.0-blue" alt="Rack">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/tests-542%20passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-564%20passing-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/overhead-2.5%C2%B5s-orange" alt="Performance">
 </p>
 
