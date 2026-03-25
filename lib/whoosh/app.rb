@@ -539,7 +539,8 @@ module Whoosh
         generator.add_route(
           method: route[:method], path: route[:path],
           request_schema: handler[:request_schema],
-          response_schema: handler[:response_schema]
+          response_schema: handler[:response_schema],
+          query_schema: handler[:query_schema]
         )
       end
 
@@ -570,13 +571,14 @@ module Whoosh
       })
     end
 
-    def add_route(method, path, request: nil, response: nil, **metadata, &block)
+    def add_route(method, path, request: nil, response: nil, query: nil, **metadata, &block)
       full_path = "#{@group_prefix}#{path}"
       merged_metadata = @group_metadata.merge(metadata)
       handler = {
         block: block,
         request_schema: request,
         response_schema: response,
+        query_schema: query,
         middleware: @group_middleware.dup
       }
       @router.add(method, full_path, handler, **merged_metadata)
