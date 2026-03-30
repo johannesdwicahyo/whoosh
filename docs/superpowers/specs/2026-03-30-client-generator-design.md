@@ -9,7 +9,7 @@ An intelligent client generator for the Whoosh framework that introspects an exi
 
 **Command:** `whoosh generate client <type> [--oauth] [--dir=<path>]`
 
-**Supported client types:** `react_spa`, `expo`, `ios`, `flutter`, `htmx`
+**Supported client types:** `react_spa`, `expo`, `ios`, `flutter`, `htmx`, `telegram_bot`, `telegram_mini_app`
 
 ## CLI Interface & Flow
 
@@ -302,6 +302,75 @@ clients/htmx/
 
 **Stack:** htmx 2.x, plain HTML, vanilla JS for auth token handling, no build step. Serve with any static file server.
 
+### telegram_bot (Ruby)
+
+A Telegram bot that exposes the Whoosh API's resources as bot commands and inline interactions.
+
+```
+clients/telegram_bot/
+├── bot.rb                      # Entry point, long-polling or webhook
+├── lib/
+│   ├── api/
+│   │   ├── client.rb           # HTTP client for Whoosh API
+│   │   ├── auth_service.rb     # Login/register via bot conversation
+│   │   └── task_service.rb     # CRUD operations
+│   ├── handlers/
+│   │   ├── start_handler.rb    # /start — welcome + register/login
+│   │   ├── auth_handler.rb     # /login, /register conversation flow
+│   │   └── task_handler.rb     # /tasks, /new, /edit, /delete
+│   ├── keyboards/
+│   │   └── inline_keyboards.rb # Inline buttons for task actions
+│   └── session/
+│       └── store.rb            # User session + JWT token storage (Redis or file)
+├── config.yml                  # BOT_TOKEN, API_URL
+├── Gemfile
+└── README.md
+```
+
+**Stack:** Ruby, telegram-bot-ruby gem, long-polling (default) or webhook mode. Bot commands map to API resources — `/tasks` lists, inline buttons for create/edit/delete.
+
+### telegram_mini_app (React + Telegram WebApp SDK)
+
+A Telegram Mini App (TWA) — a web frontend that runs inside Telegram, using the Telegram WebApp SDK for native integration.
+
+```
+clients/telegram_mini_app/
+├── src/
+│   ├── api/
+│   │   ├── client.ts          # Fetch wrapper, uses initData for auth
+│   │   ├── auth.ts            # Validate via Telegram initData, exchange for JWT
+│   │   └── tasks.ts           # CRUD operations
+│   ├── models/
+│   │   └── task.ts            # TypeScript interfaces from IR
+│   ├── hooks/
+│   │   ├── useTelegram.ts     # WebApp SDK wrapper (theme, haptics, back button)
+│   │   ├── useAuth.ts         # Auth state using Telegram identity
+│   │   └── useTasks.ts        # CRUD hooks
+│   ├── pages/
+│   │   ├── TaskList.tsx
+│   │   ├── TaskDetail.tsx
+│   │   └── TaskForm.tsx
+│   ├── components/
+│   │   ├── Layout.tsx         # Adapts to Telegram theme (colorScheme, headerColor)
+│   │   └── MainButton.tsx     # Telegram MainButton wrapper for primary actions
+│   ├── router.tsx
+│   ├── App.tsx
+│   └── main.tsx
+├── .env                       # API_URL, BOT_USERNAME
+├── index.html
+├── package.json
+├── vite.config.ts
+└── tsconfig.json
+```
+
+**Stack:** React 19, Vite, TypeScript, Telegram WebApp SDK (`@twa-dev/sdk`). Auth uses Telegram's `initData` validated server-side — no login/register screens needed. UI adapts to Telegram's theme colors.
+
+**Key differences from react_spa:**
+- No login/register screens — identity comes from Telegram
+- Auth flow: Telegram `initData` → backend validates → issues JWT
+- Uses Telegram's `MainButton`, `BackButton`, haptic feedback, and theme colors
+- Optimized for mobile viewport within Telegram
+
 ## Fallback Backend Scaffolding
 
 When no Whoosh app exists or the API is incomplete, the generator scaffolds a standard backend.
@@ -387,13 +456,15 @@ bcrypt via `require "bcrypt"` — hashed on register, verified on login. No plai
 
 ### Platform dependency checks
 
-| Client    | Required         | Check command          |
-|-----------|------------------|------------------------|
-| react_spa | Node.js 18+      | `node --version`       |
-| expo      | Node.js 18+, Expo CLI | `npx expo --version` |
-| ios       | Xcode 15+, macOS | `xcodebuild -version`  |
-| flutter   | Flutter 3.x, Dart| `flutter --version`    |
-| htmx      | Nothing extra     | (runs inside Whoosh)   |
+| Client             | Required              | Check command          |
+|--------------------|----------------------|------------------------|
+| react_spa          | Node.js 18+          | `node --version`       |
+| expo               | Node.js 18+, Expo CLI| `npx expo --version`   |
+| ios                | Xcode 15+, macOS     | `xcodebuild -version`  |
+| flutter            | Flutter 3.x, Dart    | `flutter --version`    |
+| htmx               | Nothing extra        | Any static file server |
+| telegram_bot       | Ruby 3.2+            | `ruby --version`       |
+| telegram_mini_app  | Node.js 18+          | `node --version`       |
 
 ## Testing Strategy
 
@@ -406,13 +477,15 @@ bcrypt via `require "bcrypt"` — hashed on register, verified on login. No plai
 
 ### Tests included in generated clients
 
-| Client    | Test framework        | Coverage                                      |
-|-----------|-----------------------|-----------------------------------------------|
-| react_spa | Vitest                | API client mocks, auth hooks, form validation |
-| expo      | Jest (Expo default)   | Same as react_spa, adapted for RN             |
-| ios       | XCTest                | APIClient, ViewModels, Keychain helper        |
-| flutter   | flutter_test          | Services, providers, model serialization      |
-| htmx      | Whoosh::Test (RSpec)  | HTML endpoint responses, form submissions     |
+| Client            | Test framework        | Coverage                                       |
+|-------------------|-----------------------|------------------------------------------------|
+| react_spa         | Vitest                | API client mocks, auth hooks, form validation  |
+| expo              | Jest (Expo default)   | Same as react_spa, adapted for RN              |
+| ios               | XCTest                | APIClient, ViewModels, Keychain helper         |
+| flutter           | flutter_test          | Services, providers, model serialization       |
+| htmx              | None (manual)         | Static files, test via browser                 |
+| telegram_bot      | RSpec                 | Command handlers, API client, session storage  |
+| telegram_mini_app | Vitest                | API client, Telegram SDK hooks, CRUD hooks     |
 
 Each generated project includes 3-5 starter tests covering:
 
