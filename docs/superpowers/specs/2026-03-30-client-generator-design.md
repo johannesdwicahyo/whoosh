@@ -58,7 +58,7 @@ Proceed? [Y/n]
 ### Flags
 
 - `--oauth` — adds Google/GitHub/Apple social login to auth screens and backend
-- `--dir=<path>` — override output directory (default: `clients/<type>`, htmx goes into `app/views/`)
+- `--dir=<path>` — override output directory (default: `clients/<type>`)
 
 ## Introspection Engine
 
@@ -276,27 +276,31 @@ clients/flutter/
 
 **Stack:** Flutter 3.x, Dio, Riverpod, GoRouter, flutter_secure_storage for tokens
 
-### htmx (Server-driven, minimal JS)
+### htmx (Standalone, minimal JS)
 
-Unlike other clients, htmx generates ERB views **inside the Whoosh app** — not a separate project.
+A separate static project like the other clients — HTML files that talk to the Whoosh API via htmx attributes.
 
 ```
-app/
-├── views/
-│   ├── layout.html.erb         # Shell with htmx script tag
+clients/htmx/
+├── index.html                  # Entry point, redirects to login or tasks
+├── pages/
 │   ├── auth/
-│   │   ├── login.html.erb
-│   │   └── register.html.erb
+│   │   ├── login.html          # hx-post to /auth/login
+│   │   └── register.html       # hx-post to /auth/register
 │   └── tasks/
-│       ├── index.html.erb      # hx-get, hx-swap for list
-│       ├── _task.html.erb      # Partial for single task row
-│       ├── show.html.erb
-│       └── form.html.erb       # hx-post / hx-put
-├── endpoints/
-│   └── views_endpoint.rb       # HTML-serving endpoints
+│       ├── index.html          # hx-get for list, hx-swap for updates
+│       ├── show.html           # hx-get for detail
+│       └── form.html           # hx-post / hx-put for create/edit
+├── js/
+│   ├── auth.js                 # Token storage (localStorage), auth headers
+│   └── api.js                  # htmx:configRequest interceptor for JWT
+├── css/
+│   └── style.css               # Minimal styling
+├── config.js                   # API_URL configuration
+└── README.md
 ```
 
-**Stack:** htmx 2.x, ERB templates, inline CSS, no build step. Adds HTML rendering to the Whoosh app.
+**Stack:** htmx 2.x, plain HTML, vanilla JS for auth token handling, no build step. Serve with any static file server.
 
 ## Fallback Backend Scaffolding
 
