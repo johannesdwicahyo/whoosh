@@ -600,6 +600,16 @@ module Whoosh
           require "whoosh/cli/generators"
           Whoosh::CLI::Generators.proto(name)
         end
+
+        desc "client TYPE", "Generate a client app (react_spa, expo, ios, flutter, htmx, telegram_bot, telegram_mini_app)"
+        option :oauth, type: :boolean, default: false, desc: "Include OAuth2 social login"
+        option :dir, type: :string, desc: "Output directory (default: clients/<type>)"
+        def client(type)
+          require "whoosh/cli/client_generator"
+          Whoosh::CLI::ClientGenerator.new(
+            type: type, oauth: options[:oauth], dir: options[:dir]
+          ).run
+        end
       }
     end
   end
