@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-04-04
+
+### Added — Client Generator (`whoosh generate client <type>`)
+- **7 client types** — `react_spa`, `expo`, `ios`, `flutter`, `htmx`, `telegram_bot`, `telegram_mini_app`
+- **OpenAPI introspection** — reads existing Whoosh app routes, schemas, and auth config to generate typed clients
+- **Fallback scaffolding** — generates standard JWT auth + tasks CRUD backend when no app exists
+- **Interactive CLI** — shows detected endpoints, lets you toggle which resources to include
+- **`--oauth` flag** — adds Google/GitHub/Apple social login to generated clients
+- **react_spa** — React 19 + Vite + TypeScript + React Router, auth hooks, CRUD pages, cursor pagination
+- **expo** — Expo SDK 52 + React Native + Expo Router + SecureStore for tokens
+- **ios** — SwiftUI + MVVM + async/await + Keychain + NavigationStack
+- **flutter** — Dart + Dio + Riverpod + GoRouter + flutter_secure_storage
+- **htmx** — Standalone HTML + htmx 2.x + vanilla JS, no build step
+- **telegram_bot** — Ruby bot with command handlers, inline keyboards, session store
+- **telegram_mini_app** — React + Telegram WebApp SDK, auth via initData, theme-adaptive
+- **Dependency checker** — validates platform tools (node, flutter, xcode, ruby) before generating
+- **Type mapping engine** — IR types map to TypeScript, Swift, Dart, Ruby, HTML form inputs
+- 95 client generator tests, 0 failures
+
 ## [1.5.0] - 2026-03-25
 
 ### Added — FastAPI Parity (10 gaps closed, ~90% feature parity)
