@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/ruby-%3E%3D%203.4.0-red" alt="Ruby">
   <img src="https://img.shields.io/badge/rack-3.0-blue" alt="Rack">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/tests-564%20passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-659%20passing-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/overhead-2.5%C2%B5s-orange" alt="Performance">
 </p>
 
@@ -346,6 +346,43 @@ app.docs enabled: true, redoc: true
 - `/redoc` — ReDoc
 - `/openapi.json` — Machine-readable spec
 
+### Client Generator
+
+Generate complete, typed, ready-to-run client apps from your Whoosh API — one command.
+
+```sh
+whoosh generate client react_spa          # React + Vite + TypeScript
+whoosh generate client expo               # Expo + React Native
+whoosh generate client ios                # SwiftUI + MVVM
+whoosh generate client flutter            # Dart + Riverpod + GoRouter
+whoosh generate client htmx               # Plain HTML + htmx, no build step
+whoosh generate client telegram_bot       # Ruby Telegram bot
+whoosh generate client telegram_mini_app  # React + Telegram WebApp SDK
+
+whoosh generate client react_spa --oauth  # Add Google/GitHub/Apple login
+```
+
+The generator **introspects your Whoosh app** via OpenAPI — it reads your routes, schemas, and auth config, then produces a typed client with:
+
+- API client with auth headers and automatic token refresh
+- Model types matching your schemas
+- Auth screens (login, register, logout)
+- CRUD screens for every resource
+- Navigation and routing
+- Starter tests
+
+If no Whoosh app exists yet, it scaffolds a standard backend (JWT auth + tasks CRUD) alongside the client.
+
+| Client | Stack | Token Storage |
+|--------|-------|---------------|
+| `react_spa` | React 19, Vite, TypeScript, React Router | localStorage |
+| `expo` | Expo SDK 52, Expo Router, TypeScript | SecureStore |
+| `ios` | SwiftUI, async/await, MVVM | Keychain |
+| `flutter` | Dart, Dio, Riverpod, GoRouter | flutter_secure_storage |
+| `htmx` | HTML, htmx 2.x, vanilla JS | localStorage |
+| `telegram_bot` | Ruby, telegram-bot-ruby | In-memory session |
+| `telegram_mini_app` | React, Telegram WebApp SDK | Telegram initData |
+
 ### Health Checks
 
 ```ruby
@@ -377,6 +414,8 @@ whoosh generate model User name:string email:string
 whoosh generate migration add_email_to_users
 whoosh generate plugin my_tool      # plugin boilerplate
 whoosh generate proto ChatRequest   # .proto file
+whoosh generate client react_spa    # full client app (7 types)
+whoosh generate client expo --oauth # with OAuth2 social login
 
 whoosh db migrate             # run migrations
 whoosh db rollback            # rollback
