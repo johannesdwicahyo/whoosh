@@ -50,4 +50,57 @@ RSpec.describe "App endpoint loading" do
       expect(JSON.parse(last_response.body)["greeting"]).to eq("works")
     end
   end
+
+  describe "endpoint with inject DSL" do
+    it "resolves and exposes injected dependencies as accessors" do
+      application.provide(:greeter) { "Hi" }
+      application.provide(:suffix) { "!" }
+
+      endpoint_class = Class.new(Whoosh::Endpoint) do
+        get "/hello"
+        inject :greeter, :suffix
+
+        def call(_req)
+          { message: "#{greeter}, world#{suffix}" }
+        end
+      end
+
+      application.register_endpoint(endpoint_class)
+      get "/hello"
+      expect(last_response.status).to eq(200)
+      expect(JSON.parse(last_response.body)["message"]).to eq("Hi, world!")
+    end
+
+    it "passes the current request to request-scoped providers" do
+      application.provide(:current_path, scope: :request) { |req| req.path }
+
+      endpoint_class = Class.new(Whoosh::Endpoint) do
+        get "/where"
+        inject :current_path
+
+        def call(_req)
+          { path: current_path }
+        end
+      end
+
+      application.register_endpoint(endpoint_class)
+      get "/where"
+      expect(JSON.parse(last_response.body)["path"]).to eq("/where")
+    end
+
+    it "raises a clear error when injecting an unknown dependency" do
+      endpoint_class = Class.new(Whoosh::Endpoint) do
+        get "/nope"
+        inject :not_registered
+
+        def call(_req)
+          { ok: true }
+        end
+      end
+
+      application.register_endpoint(endpoint_class)
+      get "/nope"
+      expect(last_response.status).to eq(500)
+    end
+  end
 end

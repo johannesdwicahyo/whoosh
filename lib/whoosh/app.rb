@@ -622,9 +622,16 @@ module Whoosh
       # Call handler
       if handler[:endpoint_class]
         # Class-based endpoint
-        endpoint = handler[:endpoint_class].new
-        context = Endpoint::Context.new(self, request)
-        result = endpoint.call(context.request)
+        endpoint_class = handler[:endpoint_class]
+        endpoint = endpoint_class.new
+        if endpoint_class.respond_to?(:dependencies)
+          endpoint_class.dependencies.each do |dep|
+            value = @di.resolve(dep, request: request)
+            endpoint.instance_variable_set(:"@#{dep}", value)
+            endpoint.define_singleton_method(dep) { instance_variable_get(:"@#{dep}") }
+          end
+        end
+        result = endpoint.call(request)
       else
         # Inline block endpoint
         block = handler[:block]
