@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/rack-3.0-blue" alt="Rack">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/tests-659%20passing-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/status-pre--1.0-yellow" alt="Status">
+  <img src="https://img.shields.io/badge/stability-evolving-yellow" alt="Stability">
 </p>
 
 ---
@@ -29,11 +29,11 @@
 
 ## When NOT to use Whoosh
 
-Whoosh is pre-1.0 and maintained by a small team. Reach for something else when:
+Whoosh is on 1.x but still evolving — solo-maintained, without a production track record yet, and breaking changes ship occasionally (always called out in `CHANGELOG.md`). Reach for something else when:
 
 - **You need a managed backend.** Supabase, PocketBase, or Firebase give you DB + auth + realtime without hosting a framework. Whoosh is the app layer — use it *with* a managed DB if that fits.
 - **You want maximum ecosystem depth.** Rails has more gems; FastAPI has the Python ML/AI library ecosystem (PyTorch, transformers, LangChain). If your core workload lives in those libraries, stay where they are.
-- **You need 1.0 stability guarantees today.** APIs can still change; we will call out breaking changes in `CHANGELOG.md`, but pre-1.0 means pre-1.0.
+- **You need a frozen API surface.** Being on 1.x doesn't mean the API is locked — breaking changes still ship when the design calls for it. If you need strict stability contracts today, wait a few releases.
 - **Your team has no Ruby experience** and the project isn't specifically about AI/MCP. Hiring and ecosystem gravity usually beat framework features.
 
 Whoosh's sweet spot: Ruby shops (or Ruby-curious teams) building AI / LLM / MCP-backed APIs who want typed schemas, OpenAPI, and MCP without wiring three libraries together.
