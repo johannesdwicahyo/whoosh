@@ -211,29 +211,8 @@ module Whoosh
       end
     end
 
-    # --- Streaming helpers ---
-
-    def stream(type, &block)
-      case type
-      when :sse
-        body = Streaming::StreamBody.new do |out|
-          sse = Streaming::SSE.new(out)
-          block.call(sse)
-        end
-        [200, Streaming::SSE.headers, body]
-      else
-        raise ArgumentError, "Unknown stream type: #{type}"
-      end
-    end
-
-    def stream_llm(&block)
-      body = Streaming::StreamBody.new do |out|
-        llm_stream = Streaming::LlmStream.new(out)
-        block.call(llm_stream)
-        llm_stream.finish
-      end
-      [200, Streaming::LlmStream.headers, body]
-    end
+    # --- Streaming helpers (stream, stream_llm) ---
+    include Streaming::Helpers
 
     # WebSocket endpoint helper — use in handle_request, returns hijack response
     def websocket(env, &block)

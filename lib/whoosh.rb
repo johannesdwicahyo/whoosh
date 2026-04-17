@@ -66,6 +66,7 @@ module Whoosh
     autoload :WebSocket,  "whoosh/streaming/websocket"
     autoload :LlmStream,  "whoosh/streaming/llm_stream"
     autoload :StreamBody, "whoosh/streaming/stream_body"
+    autoload :Helpers,    "whoosh/streaming/helpers"
   end
 
   module OpenAPI

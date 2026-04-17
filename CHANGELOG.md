@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-04-17
+
+### Added
+- **Streaming helpers on `Whoosh::Endpoint`.** Class-based endpoints can now call `stream :sse do |out| … end` and `stream_llm do |out| … end` directly, matching the block-route DSL on `Whoosh::App`. Previously, endpoints had to construct `StreamBody` + `SSE` + headers tuples by hand. The helpers were extracted into `Whoosh::Streaming::Helpers` and mixed into both `App` and `Endpoint` so they stay in sync.
+
 ## [1.8.0] - 2026-04-17
 
 ### Added
