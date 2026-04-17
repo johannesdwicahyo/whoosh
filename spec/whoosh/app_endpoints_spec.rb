@@ -88,6 +88,28 @@ RSpec.describe "App endpoint loading" do
       expect(JSON.parse(last_response.body)["path"]).to eq("/where")
     end
 
+    it "exposes the stream helper for SSE from inside an endpoint" do
+      endpoint_class = Class.new(Whoosh::Endpoint) do
+        get "/events"
+
+        def call(_req)
+          stream :sse do |out|
+            out.event("tick", { n: 1 })
+            out << { done: true }
+          end
+        end
+      end
+
+      application.register_endpoint(endpoint_class)
+      get "/events"
+      expect(last_response.status).to eq(200)
+      expect(last_response.headers["content-type"]).to eq("text/event-stream")
+      body = last_response.body
+      expect(body).to include("event: tick")
+      expect(body).to include(%("n":1))
+      expect(body).to include(%("done":true))
+    end
+
     it "raises a clear error when injecting an unknown dependency" do
       endpoint_class = Class.new(Whoosh::Endpoint) do
         get "/nope"

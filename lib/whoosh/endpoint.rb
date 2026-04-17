@@ -2,6 +2,8 @@
 
 module Whoosh
   class Endpoint
+    include Streaming::Helpers
+
     class Context
       attr_reader :request
 
