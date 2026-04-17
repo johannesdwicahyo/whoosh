@@ -5,8 +5,8 @@
 <h1 align="center">Whoosh</h1>
 
 <p align="center">
-  <strong>AI-first Ruby API framework inspired by FastAPI</strong><br>
-  Schema validation, MCP, streaming, background jobs, and OpenAPI docs — out of the box.
+  <strong>The fastest way to ship a production MCP server in Ruby.</strong><br>
+  A FastAPI-style framework with MCP, schema validation, auth, streaming, and OpenAPI — built in.
 </p>
 
 <p align="center">
@@ -14,18 +14,29 @@
   <img src="https://img.shields.io/badge/rack-3.0-blue" alt="Rack">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/tests-659%20passing-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/overhead-2.5%C2%B5s-orange" alt="Performance">
+  <img src="https://img.shields.io/badge/status-pre--1.0-yellow" alt="Status">
 </p>
 
 ---
 
 ## Why Whoosh?
 
-- **AI-first** — Every app is an MCP server automatically. LLM wrapper with structured output, caching, and streaming. Vector search built-in. 18+ AI gem auto-discovery.
-- **Fast** — 2.5µs framework overhead, 87K req/s with Falcon. Beats Fastify on multi-worker PostgreSQL benchmarks.
-- **Batteries included** — Auth, rate limiting, caching, background jobs, file uploads, vector search, pagination, metrics, CI pipeline.
-- **Zero config to start** — `whoosh new myapp && cd myapp && whoosh s` — everything works.
-- **AI-agent friendly** — `whoosh describe` dumps your app as JSON for AI tools. Generated `CLAUDE.md` in every project. `whoosh check` catches mistakes before runtime.
+- **MCP-native** — opt routes into MCP with `mcp: true` and they become typed tools over stdio/SSE. No glue code, no separate server.
+- **FastAPI-style DSL in Ruby** — declarative schemas, typed request/response, auto-generated OpenAPI + Swagger UI, dependency injection.
+- **Batteries included** — auth (JWT, API key, OAuth), rate limiting, caching, background jobs, file uploads, vector search, streaming, pagination.
+- **Agent-friendly** — `whoosh describe` emits a JSON snapshot of your app; generated `CLAUDE.md` so coding agents understand it; `whoosh check` validates config before runtime.
+- **Competitive Ruby performance** — YJIT + Falcon fibers + Oj, ~2.5µs framework overhead. See [Performance](#performance) for honest, per-core comparisons.
+
+## When NOT to use Whoosh
+
+Whoosh is pre-1.0 and maintained by a small team. Reach for something else when:
+
+- **You need a managed backend.** Supabase, PocketBase, or Firebase give you DB + auth + realtime without hosting a framework. Whoosh is the app layer — use it *with* a managed DB if that fits.
+- **You want maximum ecosystem depth.** Rails has more gems; FastAPI has the Python ML/AI library ecosystem (PyTorch, transformers, LangChain). If your core workload lives in those libraries, stay where they are.
+- **You need 1.0 stability guarantees today.** APIs can still change; we will call out breaking changes in `CHANGELOG.md`, but pre-1.0 means pre-1.0.
+- **Your team has no Ruby experience** and the project isn't specifically about AI/MCP. Hiring and ecosystem gravity usually beat framework features.
+
+Whoosh's sweet spot: Ruby shops (or Ruby-curious teams) building AI / LLM / MCP-backed APIs who want typed schemas, OpenAPI, and MCP without wiring three libraries together.
 
 ## Install
 
@@ -192,21 +203,24 @@ end
 
 ### MCP (Model Context Protocol)
 
-**Every route is automatically an MCP tool.** No `mcp: true` needed.
+**Routes are exposed as MCP tools only when you opt in with `mcp: true`.** This prevents internal or admin endpoints from being callable as tools by accident.
 
 ```ruby
-# These are all MCP tools automatically:
-app.post "/summarize", request: SummarizeRequest do |req|
+# Opt in per route:
+app.post "/summarize", request: SummarizeRequest, mcp: true do |req|
   { summary: llm.summarize(req.body[:text]) }
 end
 
-app.post "/translate" do |req|
-  { result: translate(req.body["text"]) }
+# Or opt in a whole group:
+app.group "/tools", mcp: true do
+  post "/translate" do |req|
+    { result: translate(req.body["text"]) }
+  end
 end
 
-# Opt OUT with mcp: false for internal routes:
-app.get "/internal", mcp: false do
-  { debug: "not exposed as MCP tool" }
+# Default: not exposed as an MCP tool.
+app.get "/internal" do
+  { debug: "not exposed" }
 end
 ```
 
@@ -440,55 +454,56 @@ whoosh check                 # validates config, auth, dependencies
 
 ## Performance
 
-### HTTP Benchmark: `GET /health → {"status":"ok"}`
+> Apple Silicon arm64, 12 cores. Ruby 3.4 + YJIT. [Full benchmark suite & reproduction steps](benchmarks/comparison/)
+>
+> **How to read these numbers.** Benchmarks are selective by nature. A `GET /health` returning `{"status":"ok"}` tests the router + serializer, not your real app. A Postgres read tests one query pattern. We show single-process (per-core) numbers first because that's the fair cross-language comparison. Multi-worker numbers are included for deployment sizing, but scaling strategies differ per runtime (Node uses `cluster`, Python uses multiple workers, Ruby uses workers × threads or fibers) and mixing them isn't apples-to-apples.
 
-> Apple Silicon arm64, 12 cores. [Full benchmark suite](benchmarks/comparison/)
+### HTTP micro-benchmark — `GET /health`
 
-**Single process** (fair 1:1 comparison):
+**Single process (per-core, fair comparison):**
 
 | Framework | Language | Server | Req/sec |
 |-----------|----------|--------|---------|
 | Fastify | Node.js 22 | built-in | 69,200 |
-| **Whoosh** | Ruby 3.4 +YJIT | **Falcon** | **24,400** |
+| **Whoosh** | Ruby 3.4 +YJIT | Falcon | **24,400** |
 | **Whoosh** | Ruby 3.4 +YJIT | Puma (5 threads) | **15,500** |
 | FastAPI | Python 3.13 | uvicorn | 8,900 |
 | Sinatra | Ruby 3.4 | Puma (5 threads) | 7,100 |
-| PHP (raw) | PHP 8.5 | built-in | 2,000 |
 
-> Whoosh + Falcon is **2.7x faster** than FastAPI single-core. Whoosh + Puma is **1.7x faster** than FastAPI. Use Falcon (recommended) for best performance.
+On this microbenchmark, Fastify is ~2.8× Whoosh+Falcon per-core; that's the honest picture for trivial JSON. Against other Ruby frameworks and against FastAPI on CPython, Whoosh is competitive.
 
-**Multi-worker** (production deployment):
+**Multi-worker (sizing reference, not apples-to-apples):**
 
-| Framework | Language | Server | Req/sec |
-|-----------|----------|--------|---------|
-| **Whoosh** | Ruby 3.4 +YJIT | **Falcon (4 workers)** | **87,400** |
-| Fastify | Node.js 22 | built-in (single thread) | 69,200 |
-| **Whoosh** | Ruby 3.4 +YJIT | Puma (4w×4t) | **52,500** |
-| Roda | Ruby 3.4 | Puma (4w×4t) | 14,700 |
+| Framework | Server | Req/sec |
+|-----------|--------|---------|
+| Whoosh | Falcon (4 workers) | 87,400 |
+| Fastify | built-in (single thread, no cluster) | 69,200 |
+| Whoosh | Puma (4w × 4t) | 52,500 |
+| Roda | Puma (4w × 4t) | 14,700 |
 
-> **Note:** Fastify is single-threaded by design (Node.js event loop). It can scale via `cluster` module but was not tested in that mode. Whoosh + Falcon with 4 workers uses 4 cores.
+Fastify was not run under `cluster`; don't read this table as "Whoosh beats Fastify." Read it as "Whoosh on 4 cores handles ~87K req/s on trivial JSON."
 
-### Real-World Benchmark: `GET /users/:id` from PostgreSQL (1000 rows)
+### Real-world benchmark — `GET /users/:id` from PostgreSQL (1000-row table)
 
-**Single process:**
+**Single process (per-core):**
 
-| Framework | Language | Req/sec |
-|-----------|----------|---------|
-| Fastify + pg | Node.js 22 | 36,900 |
-| **Whoosh + Falcon (fiber PG pool)** | Ruby 3.4 +YJIT | **13,400** |
-| **Whoosh + Puma (Sequel)** | Ruby 3.4 +YJIT | **8,600** |
-| Roda + Puma | Ruby 3.4 | 6,700 |
-| Sinatra + Puma | Ruby 3.4 | 4,400 |
-| FastAPI + uvicorn | Python 3.13 | 2,400 |
+| Framework | Req/sec |
+|-----------|---------|
+| Fastify + pg | 36,900 |
+| **Whoosh + Falcon (fiber PG pool)** | **13,400** |
+| Whoosh + Puma (Sequel) | 8,600 |
+| Roda + Puma | 6,700 |
+| Sinatra + Puma | 4,400 |
+| FastAPI + uvicorn | 2,400 |
 
-**Multi-worker (PostgreSQL):**
+On realistic DB-bound work, Whoosh's fiber-aware PG pool closes a lot of the gap vs Fastify (~2.75×) and has a wide lead over FastAPI on CPython and over other Ruby frameworks.
 
-| Framework | Language | Req/sec |
-|-----------|----------|---------|
-| **Whoosh + Falcon (4 workers, fiber PG pool)** | Ruby 3.4 +YJIT | **45,900** |
-| Fastify (single thread) | Node.js 22 | 36,900 |
+**Multi-worker (sizing reference):**
 
-> Whoosh + Falcon with fiber-aware PG pool is **5.6x faster** than FastAPI. Multi-worker Falcon **beats Fastify by 24%** on real PostgreSQL workloads.
+| Framework | Req/sec |
+|-----------|---------|
+| Whoosh + Falcon (4 workers, fiber PG pool) | 45,900 |
+| Fastify (single thread) | 36,900 |
 
 ### Micro-benchmarks
 
