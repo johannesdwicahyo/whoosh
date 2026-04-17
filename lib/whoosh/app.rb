@@ -493,8 +493,9 @@ module Whoosh
       internal_paths = %w[/openapi.json /docs /redoc /metrics /healthz]
 
       @router.routes.each do |route|
-        # Auto-expose all routes as MCP tools (opt-out with mcp: false)
-        next if route[:metadata] && route[:metadata][:mcp] == false
+        # Routes are exposed as MCP tools only when opted in with mcp: true.
+        # Why: default-expose leaks internal/admin endpoints as callable tools.
+        next unless route[:metadata] && route[:metadata][:mcp] == true
         next if internal_paths.include?(route[:path])
 
         tool_name = "#{route[:method]} #{route[:path]}"
