@@ -2,10 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.7.0] - 2026-04-17
 
 ### Changed — BREAKING
 - **MCP tool exposure is now opt-in.** Routes are only registered as MCP tools when declared with `mcp: true` (or inside a group with `mcp: true`). Previously, every route was auto-exposed and had to be opted out with `mcp: false`. The old default leaked internal/admin endpoints as callable tools. To restore prior behavior for a route, add `mcp: true` to it explicitly.
+
+### Changed
+- Repositioned README around MCP, added "When NOT to use Whoosh" section, reframed performance benchmarks with honest per-core comparisons.
 
 ## [1.6.0] - 2026-04-04
 
