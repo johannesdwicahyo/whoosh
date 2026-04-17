@@ -35,6 +35,14 @@ module Whoosh
         @declared_routes
       end
 
+      def inject(*names)
+        @dependencies = names
+      end
+
+      def dependencies
+        @dependencies || []
+      end
+
       def get(path, **opts)
         declare_route("GET", path, **opts)
       end

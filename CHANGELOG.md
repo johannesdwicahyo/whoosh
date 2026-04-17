@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-04-17
+
+### Added
+- **Endpoint DI.** `Whoosh::Endpoint` subclasses now support `inject :dep1, :dep2, …` (matching `Whoosh::Job`). Injected deps are resolved from the DI container per request and exposed as accessor methods on the endpoint instance. Request-scoped providers receive the current request. Previously, class-based endpoints had no access to DI — only block routes did, via kwarg injection.
+
+  ```ruby
+  class UsersIndex < Whoosh::Endpoint
+    get "/users"
+    inject :db
+
+    def call(_req)
+      db[:users].all
+    end
+  end
+  ```
+
 ## [1.7.0] - 2026-04-17
 
 ### Changed — BREAKING
