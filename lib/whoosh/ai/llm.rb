@@ -2,15 +2,48 @@
 
 module Whoosh
   module AI
+    # Bounded LRU cache. Ruby's Hash preserves insertion order, so we reorder
+    # on read (delete+reinsert) and evict the oldest entry when over capacity.
+    class LRUCache
+      def initialize(max_size)
+        @max_size = max_size
+        @store = {}
+        @mutex = Mutex.new
+      end
+
+      def [](key)
+        @mutex.synchronize do
+          return nil unless @store.key?(key)
+          value = @store.delete(key)
+          @store[key] = value
+        end
+      end
+
+      def []=(key, value)
+        @mutex.synchronize do
+          @store.delete(key) if @store.key?(key)
+          @store[key] = value
+          @store.shift while @store.size > @max_size
+          value
+        end
+      end
+
+      def size
+        @store.size
+      end
+    end
+
+    DEFAULT_MODEL     = "claude-sonnet-4-6"
+    DEFAULT_CACHE_MAX = 1000
+
     class LLM
       attr_reader :provider, :model
 
-      def initialize(provider: "auto", model: nil, cache_enabled: true)
+      def initialize(provider: "auto", model: nil, cache_enabled: true, cache_size: DEFAULT_CACHE_MAX)
         @provider = provider
         @model = model
         @cache_enabled = cache_enabled
-        @cache = cache_enabled ? {} : nil
-        @mutex = Mutex.new
+        @cache = cache_enabled ? LRUCache.new(cache_size) : nil
         @ruby_llm = nil
       end
 
@@ -32,10 +65,7 @@ module Whoosh
           temperature: temperature
         )
 
-        # Cache result
-        if use_cache && @cache
-          @mutex.synchronize { @cache[cache_key] = result }
-        end
+        @cache[cache_key] = result if use_cache && @cache
 
         result
       end
@@ -87,7 +117,7 @@ module Whoosh
 
         if @ruby_llm
           # Use ruby_llm gem
-          chat = RubyLLM.chat(model: model || "claude-sonnet-4-20250514")
+          chat = RubyLLM.chat(model: model || DEFAULT_MODEL)
           chat.with_instructions(system) if system
           response = chat.ask(messages.last[:content])
           response.content

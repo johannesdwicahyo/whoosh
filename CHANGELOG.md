@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2026-04-20
+
+### Fixed
+- **`Whoosh::AI::LLM` cache is now bounded.** Replaced the unbounded `Hash` with `Whoosh::AI::LRUCache` (default 1000 entries, configurable via `ai.cache_size` in `config/app.yml`). Previously the cache grew forever — fine for short-lived processes, a memory leak under Falcon/long-running workers.
+- **Default model updated to `claude-sonnet-4-6`.** Previous default (`claude-sonnet-4-20250514`) pointed at a retired model id and failed at call time unless the user passed `model:` explicitly or set `ai.model` in config.
+
 ## [1.9.0] - 2026-04-17
 
 ### Added
