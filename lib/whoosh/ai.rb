@@ -11,7 +11,8 @@ module Whoosh
       LLM.new(
         provider: ai_config["provider"] || "auto",
         model: ai_config["model"],
-        cache_enabled: ai_config["cache"] != false
+        cache_enabled: ai_config["cache"] != false,
+        cache_size: ai_config["cache_size"] || DEFAULT_CACHE_MAX
       )
     end
   end

@@ -24,6 +24,54 @@ RSpec.describe Whoosh::AI::LLM do
   end
 end
 
+RSpec.describe Whoosh::AI::LRUCache do
+  it "returns nil for missing keys" do
+    cache = described_class.new(2)
+    expect(cache[:nope]).to be_nil
+  end
+
+  it "stores and retrieves values" do
+    cache = described_class.new(2)
+    cache[:a] = 1
+    expect(cache[:a]).to eq(1)
+  end
+
+  it "evicts the oldest entry when over capacity" do
+    cache = described_class.new(2)
+    cache[:a] = 1
+    cache[:b] = 2
+    cache[:c] = 3
+    expect(cache[:a]).to be_nil
+    expect(cache[:b]).to eq(2)
+    expect(cache[:c]).to eq(3)
+    expect(cache.size).to eq(2)
+  end
+
+  it "promotes entries to most-recent on read" do
+    cache = described_class.new(2)
+    cache[:a] = 1
+    cache[:b] = 2
+    cache[:a] # touch :a — :b is now oldest
+    cache[:c] = 3
+    expect(cache[:a]).to eq(1)
+    expect(cache[:b]).to be_nil
+  end
+
+  it "updates value in place without changing size" do
+    cache = described_class.new(2)
+    cache[:a] = 1
+    cache[:a] = 2
+    expect(cache[:a]).to eq(2)
+    expect(cache.size).to eq(1)
+  end
+end
+
+RSpec.describe "Whoosh::AI::LLM default model" do
+  it "targets a current Claude model (not a retired id)" do
+    expect(Whoosh::AI::DEFAULT_MODEL).to eq("claude-sonnet-4-6")
+  end
+end
+
 RSpec.describe Whoosh::AI::StructuredOutput do
   describe ".prompt_for" do
     it "generates a prompt from schema" do
