@@ -59,13 +59,12 @@ RSpec.describe "Streaming edge cases" do
     expect(io.read).not_to include("ignored")
   end
 
-  it "LlmStream handles empty string chunks" do
+  it "LlmStream skips empty string chunks (avoids noisy tool-call preludes)" do
     io = StringIO.new
     stream = Whoosh::Streaming::LlmStream.new(io)
     stream << ""
     io.rewind
-    parsed = JSON.parse(io.read.match(/data: (.+)/)[1])
-    expect(parsed["choices"][0]["delta"]["content"]).to eq("")
+    expect(io.read).to eq("")
   end
 end
 

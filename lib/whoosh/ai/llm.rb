@@ -90,18 +90,19 @@ module Whoosh
         end
       end
 
-      # Stream LLM response — yields chunks
+      # Stream an LLM response — yields each chunk as ruby_llm produces it.
+      # The block receives a RubyLLM::Chunk (a Message subclass with #content).
+      # Returns the final response message after the stream completes.
       def stream(message, model: nil, system: nil, &block)
         ensure_ruby_llm!
+        unless @ruby_llm
+          raise Errors::DependencyError, "No LLM provider available. Add 'ruby_llm' to your Gemfile."
+        end
 
-        messages = [{ role: "user", content: message }]
-        # Delegate to ruby_llm's streaming interface
-        if @ruby_llm
-          # ruby_llm streaming would go here
-          # For now, fall back to non-streaming
-          result = chat(message, model: model, system: system, cache: false)
-          yield result if block_given?
-          result
+        chat = RubyLLM.chat(model: model || @model || DEFAULT_MODEL)
+        chat.with_instructions(system) if system
+        chat.ask(message) do |chunk|
+          block.call(chunk) if block
         end
       end
 

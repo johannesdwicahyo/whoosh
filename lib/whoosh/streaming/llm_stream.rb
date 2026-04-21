@@ -17,7 +17,8 @@ module Whoosh
 
       def <<(chunk)
         return if @closed
-        text = chunk.respond_to?(:text) ? chunk.text : chunk.to_s
+        text = extract_text(chunk)
+        return self if text.nil? || text.empty?
         payload = { choices: [{ delta: { content: text } }] }
         write("data: #{JSON.generate(payload)}\n\n")
         self
@@ -39,6 +40,21 @@ module Whoosh
       end
 
       private
+
+      # ruby_llm chunks expose #content (Message subclass). Older code paths
+      # and plain-string yields are also supported.
+      def extract_text(chunk)
+        return chunk if chunk.is_a?(String)
+        if chunk.respond_to?(:content)
+          c = chunk.content
+          return "" if c.nil?
+          return c if c.is_a?(String)
+          return c.text if c.respond_to?(:text)
+          return c.to_s
+        end
+        return chunk.text if chunk.respond_to?(:text)
+        chunk.to_s
+      end
 
       def write(data)
         @io.write(data)
