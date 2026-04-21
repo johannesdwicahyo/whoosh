@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-04-21
+
+### Added
+- **Real LLM streaming.** `Whoosh::AI::LLM#stream` now wires through to `ruby_llm`'s block-based streaming (`chat.ask(msg) { |chunk| … }`). Previously it was a stub that called the non-streaming path and yielded the full response once. Combined with the `stream_llm` endpoint helper, you can now pipe tokens out over SSE as they arrive:
+
+  ```ruby
+  class Chat < Whoosh::Endpoint
+    post "/chat"
+    inject :llm
+
+    def call(req)
+      stream_llm do |out|
+        llm.stream(req.body[:message]) { |chunk| out << chunk }
+      end
+    end
+  end
+  ```
+
+### Fixed
+- **`Whoosh::Streaming::LlmStream#<<` handles `ruby_llm` chunks natively.** Reads `chunk.content` (the canonical field on `RubyLLM::Chunk < Message`), unwraps `Content` objects with `#text`, and skips empty chunks (tool-call preludes and other noise) rather than emitting `{"content":""}` frames.
+
 ## [1.9.1] - 2026-04-20
 
 ### Fixed

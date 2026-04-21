@@ -22,6 +22,78 @@ RSpec.describe Whoosh::AI::LLM do
       expect(uncached).to be_a(Whoosh::AI::LLM)
     end
   end
+
+  describe "#stream" do
+    before do
+      fake_module = Module.new do
+        def self.chat(*, **); end
+      end
+      stub_const("RubyLLM", fake_module)
+      llm.instance_variable_set(:@ruby_llm, true)
+      allow(llm).to receive(:ensure_ruby_llm!) # skip real require
+    end
+
+    it "raises DependencyError when ruby_llm is unavailable" do
+      llm.instance_variable_set(:@ruby_llm, false)
+      expect { llm.stream("hi") { |c| c } }.to raise_error(Whoosh::Errors::DependencyError, /ruby_llm/)
+    end
+
+    it "forwards each chunk from ruby_llm to the block" do
+      chunk_class = Struct.new(:content)
+      chunks = [chunk_class.new("Hel"), chunk_class.new("lo"), chunk_class.new("!")]
+
+      fake_chat = double("RubyLLM::Chat")
+      allow(fake_chat).to receive(:with_instructions).and_return(fake_chat)
+      allow(fake_chat).to receive(:ask) do |_msg, &block|
+        chunks.each { |ch| block.call(ch) }
+        chunk_class.new("Hello!")
+      end
+      allow(RubyLLM).to receive(:chat).with(model: Whoosh::AI::DEFAULT_MODEL).and_return(fake_chat)
+
+      received = []
+      llm.stream("say hi") { |c| received << c.content }
+
+      expect(received).to eq(["Hel", "lo", "!"])
+    end
+
+    it "applies system instructions and a custom model" do
+      fake_chat = double("RubyLLM::Chat")
+      expect(fake_chat).to receive(:with_instructions).with("be terse").and_return(fake_chat)
+      allow(fake_chat).to receive(:ask)
+      expect(RubyLLM).to receive(:chat).with(model: "claude-haiku-4-5").and_return(fake_chat)
+
+      llm.stream("hi", model: "claude-haiku-4-5", system: "be terse") { |_c| }
+    end
+  end
+end
+
+RSpec.describe Whoosh::Streaming::LlmStream do
+  let(:io)     { StringIO.new }
+  let(:stream) { described_class.new(io) }
+
+  it "extracts text from ruby_llm Chunk-like objects via #content" do
+    chunk = Struct.new(:content).new("hello")
+    stream << chunk
+    expect(io.string).to include(%("content":"hello"))
+  end
+
+  it "skips empty chunks (e.g. tool-call preludes with nil content)" do
+    chunk = Struct.new(:content).new(nil)
+    stream << chunk
+    expect(io.string).to eq("")
+  end
+
+  it "accepts plain strings as chunks" do
+    stream << "raw"
+    expect(io.string).to include(%("content":"raw"))
+  end
+
+  it "unwraps Content-like objects (#content returns something with #text)" do
+    content_obj = Struct.new(:text).new("inner")
+    chunk = Struct.new(:content).new(content_obj)
+    stream << chunk
+    expect(io.string).to include(%("content":"inner"))
+  end
 end
 
 RSpec.describe Whoosh::AI::LRUCache do
