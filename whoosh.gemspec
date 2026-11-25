@@ -4,7 +4,6 @@ Gem::Specification.new do |spec|
   spec.name        = "whoosh"
   spec.version     = Whoosh::VERSION
   spec.authors     = ["Johannes Dwi Cahyo Kristanto"]
-  spec.email       = [] # TODO: the address you want public on RubyGems
   spec.summary     = "An opinionated, secure-by-default JSON API framework for Rack: standalone or mounted in Rails, Sinatra, Hanami."
   spec.description = <<~DESC
     Whoosh is a small JSON API framework built straight on the Rack spec.
@@ -15,12 +14,11 @@ Gem::Specification.new do |spec|
     headers, and generates OpenAPI from the same schemas. Its only runtime
     dependency is bigdecimal.
   DESC
-  spec.homepage = "https://github.com/johannesdwicahyo/whoosh" # TODO: confirm
+  spec.homepage = "https://github.com/johannesdwicahyo/whoosh"
   spec.license  = "MIT"
   spec.required_ruby_version = ">= 3.2"
 
   spec.metadata = {
-    "homepage_uri" => spec.homepage,
     "source_code_uri" => spec.homepage,
     "changelog_uri" => "#{spec.homepage}/blob/main/CHANGELOG.md",
     "rubygems_mfa_required" => "true"

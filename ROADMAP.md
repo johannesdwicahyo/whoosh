@@ -18,9 +18,15 @@ The goal is a gem people can install. Nothing new gets built.
 - [x] Cursor pagination on timestamps: encode times with full precision so `paginate :cursor, by: :created_at` can't skip or repeat rows, and add a test
 - [x] Idempotency: a request that dies mid-flight holds its key for 24 hours; give the "processing" state a short lock (60 s)
 - [x] CI: add Ruby 4.0 to the matrix, and one job on the newest json
-- [ ] Fill in the gemspec email and homepage
+- [x] Gemspec homepage set to the existing repository; no public email, same as 1.x
 - [x] README: add "Why not Grape, or Rails with rack-attack, Pundit and a serializer?"
-- [ ] `git init`, publish the repository, push `whoosh` 0.1.0
+- [x] `git init` and first commit (local only for now)
+- [ ] Release, in this order:
+  1. In the existing GitHub repository, keep the 1.x history on a `1.x` branch
+  2. Push this history as the new `main` (a force push, since the two histories are unrelated)
+  3. Check CI is green, since the workflow has never run
+  4. `gem push` 0.1.0
+  5. Yank 1.0.1 to 1.10.0
 
 ### Reusing the name
 
