@@ -1,0 +1,25 @@
+Whoosh.configure do |config|
+  # Who is calling? Return the user, or nil. Endpoints that aren't `public!`
+  # answer 401 for nil. Example with a hashed API token column:
+  #
+  #   config.authenticate = lambda do |request|
+  #     token = request.bearer_token
+  #     token && ApiToken.active.find_by(digest: Digest::SHA256.hexdigest(token))&.user
+  #   end
+  #
+  # Or reuse the Rails session cookie (same-site browser clients):
+  #   config.authenticate = ->(request) { Session.find_by(id: request.env["rack.session"]&.dig("session_id"))&.user }
+  config.authenticate = ->(_request) { nil }
+
+  # Browser origins allowed to call the API. Empty = no cross-origin access.
+  # config.cors_origins = ["https://app.example.com"]
+
+  # Default limit per client per endpoint. Override per endpoint with `rate_limit`.
+  # config.rate_limit = [300, 60]
+
+  # Serve /openapi.json. true, :authenticated, or false.
+  config.openapi = Rails.env.development? ? true : false
+
+  # Report unexpected errors.
+  # config.on_error = ->(error, request) { Sentry.capture_exception(error, extra: { request_id: request.request_id }) }
+end

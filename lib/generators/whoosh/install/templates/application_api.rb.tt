@@ -1,0 +1,11 @@
+# Base class for your APIs: shared version, helpers and error mapping.
+class ApplicationApi < Whoosh::API
+  version 1
+
+  helpers do
+    # Available in every authorize/handle block.
+    # def current_store = current_user.store
+  end
+
+  # rescue_from(Payment::Declined) { |e| Whoosh::HTTPError.new(e.message, status: 402, code: "payment_declined") }
+end

@@ -1,0 +1,11 @@
+class StatusApi < ApplicationApi
+  tag "Status"
+
+  get "/status" do
+    summary "Health check"
+    public!
+    rate_limit 60, per: 60
+    returns StatusSchema
+    handle { { ok: true, time: Time.current } }
+  end
+end

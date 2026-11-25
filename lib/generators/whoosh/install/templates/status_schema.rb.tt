@@ -1,0 +1,4 @@
+class StatusSchema < Whoosh::Schema
+  field :ok, :boolean
+  field :time, :datetime
+end
