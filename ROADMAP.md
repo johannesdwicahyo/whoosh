@@ -22,7 +22,7 @@ The goal is a gem people can install. Nothing new gets built.
 - [x] README: add "Why not Grape, or Rails with rack-attack, Pundit and a serializer?"
 - [x] `git init` and first commit
 - [x] Keep the 1.x history on a `1.x` branch and push this history as the new `main`
-- [ ] `gem push` 2.0.0
+- [x] `gem push` 2.0.0
 - [ ] CI has never run (the GitHub account is locked on billing); tested locally on Ruby 3.3 and 3.4 only, so 3.2 and 4.0 are unverified
 
 ### Why 2.0.0 and not 0.1.0
