@@ -2,6 +2,8 @@
 
 An opinionated, secure-by-default JSON API framework for Ruby. Run it on its own, or mount it inside Rails, Sinatra or Hanami and use your existing models.
 
+> Whoosh 2 is a ground-up rewrite and shares nothing with 1.x. It is new, so expect the API to move before 3.0. The old framework is on the [`1.x` branch](https://github.com/johannesdwicahyo/whoosh/tree/1.x).
+
 ```ruby
 class OrdersApi < Whoosh::API
   version 1
@@ -70,7 +72,7 @@ Pick Grape or plain Rails if you need XML, file uploads, streaming or a large pl
 ## Install
 
 ```ruby
-gem "whoosh"
+gem "whoosh", "~> 2.0"
 ```
 
 The only runtime dependency is `bigdecimal`, which Rails already pulls in. Whoosh speaks the Rack spec directly, and uses Oj for JSON when your app has it loaded.

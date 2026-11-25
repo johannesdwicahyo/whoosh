@@ -9,7 +9,7 @@ Whoosh is one idea: a JSON API endpoint that can't boot without saying who may c
 - **No per-request metaprogramming.** Everything is compiled when the class loads.
 - **A feature is added when a real app needed it**, not before.
 
-## 0.1.0: ship it
+## 2.0.0: ship it
 
 The goal is a gem people can install. Nothing new gets built.
 
@@ -20,26 +20,23 @@ The goal is a gem people can install. Nothing new gets built.
 - [x] CI: add Ruby 4.0 to the matrix, and one job on the newest json
 - [x] Gemspec homepage set to the existing repository; no public email, same as 1.x
 - [x] README: add "Why not Grape, or Rails with rack-attack, Pundit and a serializer?"
-- [x] `git init` and first commit (local only for now)
-- [ ] Release, in this order:
-  1. In the existing GitHub repository, keep the 1.x history on a `1.x` branch
-  2. Push this history as the new `main` (a force push, since the two histories are unrelated)
-  3. Check CI is green, since the workflow has never run
-  4. `gem push` 0.1.0
-  5. Yank 1.0.1 to 1.10.0
+- [x] `git init` and first commit
+- [x] Keep the 1.x history on a `1.x` branch and push this history as the new `main`
+- [ ] `gem push` 2.0.0
+- [ ] CI has never run (the GitHub account is locked on billing); tested locally on Ruby 3.3 and 3.4 only, so 3.2 and 4.0 are unverified
 
-### Reusing the name
+### Why 2.0.0 and not 0.1.0
 
-`whoosh` 1.0.1 to 1.10.0 are on RubyGems (the old framework, 4,287 downloads in total). 0.1.0 was never published, so it can be pushed. But `gem "whoosh"` keeps resolving to 1.10.0 until the 1.x versions are yanked. Yanking can't be undone and breaks anyone who installs 1.x fresh, so it is the last step of the release, done deliberately.
+`whoosh` 1.0.1 to 1.10.0 are the old framework. RubyGems doesn't allow yanking versions older than 30 days, so they stay for good, and anything numbered below them would never be what `gem install whoosh` gives you. The rewrite was first pushed as 0.1.0 and is re-released as 2.0.0 for that reason.
 
-## 0.2.0: prove it in a real app
+## 2.1.0: prove it in a real app
 
 - [ ] Mount it in one production Rails app and move a real set of endpoints over
 - [ ] Fix whatever that hurts; this decides the rest of the list
 - [ ] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma), with the script in `bench/` so anyone can rerun it
 - [ ] Run `rake bench` in CI against the speed budget
 
-## 0.3.0: make it easy to adopt
+## 2.2.0: make it easy to adopt
 
 - [ ] `bin/rails g whoosh:api Orders` scaffolds an API class, a schema and a test
 - [ ] Test helpers for request specs (RSpec and Minitest)

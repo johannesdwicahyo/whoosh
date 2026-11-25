@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 2.0.0 (2026-11-25)
 
-First release.
+A ground-up rewrite. Whoosh 2 shares no code and no API with 1.x, which was a different, much larger framework; its history is on the `1.x` branch. The same code was briefly published as 0.1.0.
 
 - `Whoosh::API` classes are Rack apps: `run` standalone, or `mount` in Rails, Sinatra, Hanami
 - Deny-by-default endpoints: each must declare `authorize` or `public!`, and `returns`, or definition fails
