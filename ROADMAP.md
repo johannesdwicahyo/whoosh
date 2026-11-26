@@ -39,6 +39,7 @@ Fixes only, so these go out as patch releases.
 - [x] Testing: rate limits and idempotency keys no longer leak between tests in Rails; the reset is documented for everything else
 - [x] Log one line per request with status and duration
 - [x] README: show a helper method for a repeated `authorize` rule, and say that every API class must be listed in the mount line
+- [x] `gem push` 2.0.1
 - [ ] Decide whether decimals should keep their scale (`"2000.50"`, today `"2000.5"`)
 
 ## 2.1.0: prove it in a production app
