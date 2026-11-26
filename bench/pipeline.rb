@@ -40,11 +40,25 @@ def env(path)
     "rack.url_scheme" => "http", "rack.input" => StringIO.new, "HTTP_AUTHORIZATION" => "Bearer t" }
 end
 
-[["single record", "/v1/items/7"], ["25 records", "/v1/items"]].each do |label, path|
+# BENCH_BUDGET="10,30" (µs for one record, for 25) makes the run fail when either is exceeded.
+budgets = ENV["BENCH_BUDGET"]&.split(",")&.map(&:to_f)
+over = false
+
+[["single record", "/v1/items/7"], ["25 records", "/v1/items"]].each_with_index do |(label, path), i|
   5_000.times { BenchAPI.call(env(path)) }
   n = 50_000
-  t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  n.times { BenchAPI.call(env(path)) }
-  elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - t
-  puts format("%-14s %8.0f req/s  %6.1f µs/req", label, n / elapsed, elapsed / n * 1_000_000)
+  # Best of three: a noisy neighbour can only make a run slower, never faster.
+  elapsed = 3.times.map do
+    t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    n.times { BenchAPI.call(env(path)) }
+    Process.clock_gettime(Process::CLOCK_MONOTONIC) - t
+  end.min
+  micros = elapsed / n * 1_000_000
+  line = format("%-14s %8.0f req/s  %6.1f µs/req", label, n / elapsed, micros)
+  if budgets
+    line += format("  budget %.0f µs", budgets[i])
+    over ||= micros > budgets[i]
+  end
+  puts line
 end
+abort "over the speed budget" if over

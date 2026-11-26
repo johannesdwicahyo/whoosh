@@ -16,3 +16,15 @@ jobs:
       - name: Test against the newest json
         if: matrix.ruby == '4.0'
         run: gem install json && ruby -Ilib -Itest -e 'Dir["test/*_test.rb"].each { |f| require "./#{f}" }'
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      # The budget is 10 and 30 µs on a developer machine. Shared runners are slower, so CI allows three times that.
+      - run: bundle exec rake bench
+        env:
+          BENCH_BUDGET: "30,90"

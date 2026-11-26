@@ -4,7 +4,7 @@ Whoosh is one idea: a JSON API endpoint that can't boot without saying who may c
 
 ## Rules for every release
 
-- **Speed budget.** `rake bench` with YJIT stays under 10 µs for a single record and 30 µs for 25 records (today: 7.5 and 26). A change that breaks the budget doesn't merge.
+- **Speed budget.** `BENCH_BUDGET=10,30 rake bench` with YJIT stays under 10 µs for a single record and 30 µs for 25 records (today: 7.5 and 26). A change that breaks the budget doesn't merge.
 - **No new runtime dependencies.** `bigdecimal` is the only one.
 - **No per-request metaprogramming.** Everything is compiled when the class loads.
 - **A feature is added when a real app needed it**, not before.
@@ -47,7 +47,7 @@ Fixes only, so these go out as patch releases.
 
 - [ ] Mount it in one production Rails app and move a real set of endpoints over
 - [x] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma): `rake bench:http`, results in the README
-- [ ] Run `rake bench` in CI against the speed budget
+- [x] Run `rake bench` in CI against the speed budget (three times the local budget, since shared runners are slower; never run yet because of the billing lock, so tighten it after the first real runs)
 
 ## 2.2.0: make it easy to adopt
 
