@@ -87,4 +87,43 @@ class RegressionTest < Minitest::Test
 
     assert_raises(Whoosh::DefinitionError) { Class.new(Whoosh::Schema) { field :name, :string, scale: 2 } }
   end
+
+  def test_api_sign_in_skips_tokens_until_reset
+    require "whoosh/test_helpers"
+    extend Whoosh::TestHelpers
+    api = Class.new(Whoosh::API) do
+      get "/me" do
+        authorize { true }
+        returns { field :name, :string }
+        handle { { name: current_user } }
+      end
+    end
+
+    assert_equal 401, api.call(env_for(:get, "/me"))[0]
+    api_sign_in "sari"
+    status, _, body = api.call(env_for(:get, "/me"))
+    assert_equal 200, status
+    assert_includes body.join, "sari"
+    api_sign_in nil
+    assert_equal 401, api.call(env_for(:get, "/me"))[0]
+
+    api_sign_in "sari"
+    Whoosh::TestHelpers.reset!
+    assert_equal 401, api.call(env_for(:get, "/me"))[0]
+  ensure
+    Whoosh::TestHelpers.reset!
+  end
+
+  def test_generated_schema_fields_leave_out_credentials_and_unknown_types
+    require "generators/whoosh/api/fields"
+    column = Struct.new(:name, :type, :scale)
+    lines, skipped = Whoosh::Generators::Fields.from([
+      column.new("id", :integer), column.new("price", :decimal, 2), column.new("rate", :decimal),
+      column.new("meta", :jsonb), column.new("password_digest", :string), column.new("location", :point),
+      column.new("created_at", :datetime), column.new("role", :integer)
+    ], enums: ["role"])
+    assert_equal ["field :id, :integer", "field :price, :decimal, scale: 2", "field :rate, :decimal",
+                  "field :meta, :json", "field :created_at, :datetime", "field :role, :string"], lines
+    assert_equal %w[password_digest location], skipped
+  end
 end

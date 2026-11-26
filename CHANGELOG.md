@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0 (2026-11-26)
+
+- `bin/rails g whoosh:api Orders` writes a list and a show endpoint, a schema from the model's columns and a test, and adds the class to the mount line. Credential-like columns are left out of the schema; Rails enums become strings
+- `api_sign_in user` in Rails request specs and integration tests makes requests as that user without a token. `Whoosh::TestHelpers` for everything else
+- `rake bench:http`: an HTTP benchmark against Grape and a plain Rails controller, with results in the README
+- `BENCH_BUDGET=10,30 rake bench` fails when the speed budget is exceeded; CI runs it
+
 ## 2.0.2 (2026-11-26)
 
 - `scale:` on decimal fields. `field :price, :decimal, scale: 2` serializes 2000.5 as `"2000.50"`, and rejects input with more decimal places. Without `scale:` nothing changes

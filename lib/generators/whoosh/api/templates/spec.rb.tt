@@ -1,0 +1,15 @@
+require "rails_helper"
+
+RSpec.describe "<%= api_class %>", type: :request do
+  it "refuses a caller who isn't signed in" do
+    get "<%= url %>"
+    expect(response).to have_http_status(401)
+  end
+
+  it "lists <%= resource.humanize.downcase %>" do
+    api_sign_in <%= test_user %> # use a real user once authorize looks at it
+    get "<%= url %>"
+    expect(response).to have_http_status(200)
+    expect(response.parsed_body["data"]).to be_an(Array)
+  end
+end

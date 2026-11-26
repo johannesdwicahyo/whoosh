@@ -1,0 +1,15 @@
+require "test_helper"
+
+class <%= api_class %>Test < ActionDispatch::IntegrationTest
+  test "refuses a caller who isn't signed in" do
+    get "<%= url %>"
+    assert_response :unauthorized
+  end
+
+  test "lists <%= resource.humanize.downcase %>" do
+    api_sign_in <%= test_user %> # use a real user once authorize looks at it
+    get "<%= url %>"
+    assert_response :success
+    assert_kind_of Array, response.parsed_body["data"]
+  end
+end

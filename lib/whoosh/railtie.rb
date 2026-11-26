@@ -12,18 +12,25 @@ module Whoosh
       end
     end
 
-    # In tests, rate limits and idempotency keys must not carry over from one
-    # example to the next. Covers RSpec and ActiveSupport::TestCase.
+    # In tests, rate limits, idempotency keys and api_sign_in must not carry over
+    # from one example to the next. Covers RSpec and ActiveSupport::TestCase.
     config.after_initialize do
       if Rails.env.test?
-        reset = -> { Whoosh.config.store.clear if Whoosh.config.store.respond_to?(:clear) }
-        RSpec.configure { |c| c.before(:each) { reset.call } } if defined?(RSpec) && RSpec.respond_to?(:configure)
-        ActiveSupport.on_load(:active_support_test_case) { setup { reset.call } }
+        require "whoosh/test_helpers"
+        if defined?(RSpec) && RSpec.respond_to?(:configure)
+          RSpec.configure do |c|
+            c.before(:each) { Whoosh::TestHelpers.reset! }
+            c.include Whoosh::TestHelpers, type: :request
+          end
+        end
+        ActiveSupport.on_load(:active_support_test_case) { setup { Whoosh::TestHelpers.reset! } }
+        ActiveSupport.on_load(:action_dispatch_integration_test) { include Whoosh::TestHelpers }
       end
     end
 
     generators do
       require "generators/whoosh/install/install_generator"
+      require "generators/whoosh/api/api_generator"
     end
   end
 end

@@ -90,7 +90,15 @@ This creates `config/initializers/whoosh.rb`, `app/api/application_api.rb`, a st
 mount Whoosh.app("StatusApi", "OrdersApi"), at: "/api"
 ```
 
-Pass class names as strings so development code reloading works. Every API class has to be listed here; one you leave out answers 404. Handlers use your Active Record models, policies and service objects as usual. In Rails:
+Pass class names as strings so development code reloading works. Every API class has to be listed here; one you leave out answers 404.
+
+For each model you want to expose:
+
+```sh
+bin/rails g whoosh:api Orders
+```
+
+This writes `app/api/orders_api.rb` with a list and a show endpoint, `app/schemas/order_schema.rb` from the model's columns, a request spec (or an integration test when the app has no `spec/` folder), and adds `"OrdersApi"` to the mount line. Columns that look like credentials (`password_digest`, `token`, `secret` and the like) are left out of the schema. Both endpoints start open to any signed-in user, so narrow the `authorize` rules before you ship. Handlers use your Active Record models, policies and service objects as usual. In Rails:
 
 - `RecordNotFound` becomes a 404.
 - `RecordInvalid` becomes a 422 with field errors.
@@ -210,10 +218,20 @@ get "/api/v1/orders", headers: { "Authorization" => "Bearer #{token}" }
 post "/api/v1/orders", params: { customer_id: 1, items: [] }, headers: headers, as: :json
 ```
 
-Rate limits and idempotency keys are kept in one store for the whole process. In Rails, Whoosh clears it before every RSpec example and every `ActiveSupport::TestCase` test. Anywhere else, do it yourself:
+To skip tokens, sign in directly. In Rails, `api_sign_in` is available in request specs and integration tests:
 
 ```ruby
-Whoosh.config.store.clear
+api_sign_in user                 # every API request in this test is made as user
+get "/api/v1/orders"
+api_sign_in nil                  # signed out again
+```
+
+Rate limits and idempotency keys are kept in one store for the whole process. In Rails, Whoosh clears it and undoes `api_sign_in` before every RSpec example and every `ActiveSupport::TestCase` test. Anywhere else, include the helpers and reset them yourself:
+
+```ruby
+require "whoosh/test_helpers"
+include Whoosh::TestHelpers      # api_sign_in
+Whoosh::TestHelpers.reset!       # before each test
 ```
 
 ## Logging

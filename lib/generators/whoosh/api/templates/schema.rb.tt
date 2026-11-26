@@ -1,0 +1,9 @@
+# What the API sends out. A column that isn't listed here is never serialized.
+class <%= schema_class %> < Whoosh::Schema
+<% fields.first.each do |line| -%>
+  <%= line %>
+<% end -%>
+<% if fields.last.any? -%>
+  # Left out on purpose: <%= fields.last.join(", ") %>
+<% end -%>
+end

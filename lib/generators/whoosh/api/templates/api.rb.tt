@@ -1,0 +1,18 @@
+class <%= api_class %> < ApplicationApi
+  tag "<%= resource.humanize %>"
+
+  get "/<%= resource %>" do
+    summary "List <%= resource.humanize.downcase %>"
+    authorize { true } # anyone signed in. Narrow it: authorize { |user| user.admin? }
+    paginate
+    returns <%= schema_class %>
+    handle { <%= model_class %>.all }
+  end
+
+  get "/<%= resource %>/:id" do
+    summary "Show one <%= record.humanize.downcase %>"
+    authorize { true }
+    returns <%= schema_class %>
+    handle { |params| <%= model_class %>.find(params[:id]) }
+  end
+end

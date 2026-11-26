@@ -23,7 +23,7 @@ module Whoosh
         say "Whoosh is installed.", :green
         say "  1. Set config.authenticate in config/initializers/whoosh.rb"
         say "  2. curl localhost:3000#{options[:path]}/v1/status"
-        say "  3. Add API classes in app/api/ and list them in the mount line in config/routes.rb"
+        say "  3. bin/rails g whoosh:api Orders   # endpoints, a schema and a test for a model"
       end
     end
   end

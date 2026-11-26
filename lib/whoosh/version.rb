@@ -1,3 +1,3 @@
 module Whoosh
-  VERSION = "2.0.2"
+  VERSION = "2.2.0"
 end
