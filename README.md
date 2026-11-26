@@ -36,7 +36,7 @@ end
 
 An endpoint can't leak data, skip auth or accept unchecked input unless you write that down:
 
-- **Deny by default.** Every endpoint must have `authorize { ... }` or `public!`, plus `returns` and `handle`. If one is missing, the class fails to load, so the app never boots with an open endpoint.
+- **Deny by default.** Every endpoint must have `authorize { ... }` or `public!`, plus `returns` and `handle`. If one is missing, the class fails to load. In Rails that means production (which eager-loads) refuses to boot and every test that touches the API fails; in development the server starts, but the API class can't load.
 - **Declared input only.** Path, query and JSON body are merged and run through the `params` schema. Values are coerced and validated, and undeclared keys are dropped before the handler sees them, so mass assignment can't happen.
 - **Declared output only.** Responses are serialized through the `returns` schema. A new `password_digest` column never ends up in JSON.
 - **Limits everywhere:**
@@ -61,7 +61,7 @@ Both work, and both are far more mature than Whoosh. The difference is what happ
 
 | | Rails + rack-attack + Pundit + serializer | Grape | Whoosh |
 | --- | --- | --- | --- |
-| Endpoint with no access rule | Works, unless you added `verify_authorized`, which fails at request time | Works | Class fails to load |
+| Endpoint with no access rule | Works, unless you added `verify_authorized`, which fails at request time | Works | Class fails to load, so production won't boot |
 | Undeclared input | Dropped if you remember `permit` | Reaches the handler unless you call `declared(params)` | Always dropped |
 | Undeclared output | Depends on the serializer you picked | Whatever you return, unless you use an entity | Never serialized |
 | Rate limits, idempotency keys, pagination caps | Separate gems and your own code | Separate gems and your own code | Built in, on by default |

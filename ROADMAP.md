@@ -53,7 +53,7 @@ Fixes only, so these go out as patch releases.
 
 - [x] `bin/rails g whoosh:api Orders` scaffolds an API class, a schema and a test
 - [x] Test helpers for request specs (RSpec and Minitest): `api_sign_in`
-- [ ] A launch post built around the demo: delete `authorize`, the app refuses to boot (draft in `docs/launch-post.md`, not published)
+- [ ] A launch post built around the demo: delete `authorize`, the app refuses to boot (reviewed draft in `docs/launch-post.md`, not published)
 
 ## Later, only when someone asks
 
