@@ -39,8 +39,16 @@ module Whoosh
 
     def call(env)
       request = Request.new(env, config)
+      logger = config.logger
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC) if logger
       status, headers, body = dispatch(request)
-      finish(request, status, headers, body)
+      response = finish(request, status, headers, body)
+      # One line per request. The query string is left out: it can carry secrets.
+      logger&.info do
+        ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round(1)
+        "[whoosh] #{request.request_method} #{request.script_name}#{request.path} #{status} in #{ms}ms request_id=#{request.request_id}"
+      end
+      response
     end
 
     private

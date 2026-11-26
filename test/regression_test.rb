@@ -42,4 +42,30 @@ class RegressionTest < Minitest::Test
     status, headers, = call.call { flunk "must replay" }
     assert_equal [201, "true"], [status, headers["idempotent-replayed"]]
   end
+
+  class PingAPI < Whoosh::API
+    get "/ping" do
+      public!
+      returns { field :pong, :boolean }
+      handle { { pong: true } }
+    end
+  end
+
+  def test_each_request_logs_one_line_without_the_query_string
+    lines = []
+    logger = Object.new
+    logger.define_singleton_method(:info) { |&block| lines << block.call }
+    Whoosh.reset_config!
+    Whoosh.config.logger = logger
+
+    PingAPI.call(env_for(:get, "/ping", query: "token=secret").merge("SCRIPT_NAME" => "/api"))
+    PingAPI.call(env_for(:get, "/missing"))
+
+    assert_equal 2, lines.size
+    assert_match(%r{\A\[whoosh\] GET /api/ping 200 in \d+\.\d+ms request_id=[\w-]+\z}, lines[0])
+    assert_match(%r{\A\[whoosh\] GET /missing 404 in }, lines[1])
+    refute_includes lines[0], "secret"
+  ensure
+    Whoosh.reset_config!
+  end
 end

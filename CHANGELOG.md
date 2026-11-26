@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1 (2026-11-26)
+
+Found by building a new Rails app on the published gem.
+
+- In Rails tests, rate limits and idempotency keys are cleared before every example (RSpec and `ActiveSupport::TestCase`). Before this, one test's requests could rate-limit another
+- One log line per request with method, path, status, duration and request ID, written to `config.logger` at info level
+- README: a Testing section, and a note on sharing an `authorize` rule through `helpers`
+
 ## 2.0.0 (2026-11-25)
 
 A ground-up rewrite. Whoosh 2 shares no code and no API with 1.x, which was a different, much larger framework; its history is on the `1.x` branch. The same code was briefly published as 0.1.0.

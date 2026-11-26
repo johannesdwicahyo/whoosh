@@ -90,7 +90,7 @@ This creates `config/initializers/whoosh.rb`, `app/api/application_api.rb`, a st
 mount Whoosh.app("StatusApi", "OrdersApi"), at: "/api"
 ```
 
-Pass class names as strings so development code reloading works. Handlers use your Active Record models, policies and service objects as usual. In Rails:
+Pass class names as strings so development code reloading works. Every API class has to be listed here; one you leave out answers 404. Handlers use your Active Record models, policies and service objects as usual. In Rails:
 
 - `RecordNotFound` becomes a 404.
 - `RecordInvalid` becomes a 422 with field errors.
@@ -148,6 +148,17 @@ invalid!(quantity: "is more than the stock left")        # 422, field errors
 error!(402, "payment_required", "Top up your balance first.")
 ```
 
+A rule you repeat can live in `helpers`, since `authorize` blocks can call them:
+
+```ruby
+helpers { def staff? = current_user.staff? || current_user.admin? }
+
+get "/orders" do
+  authorize { staff? }
+  # ...
+end
+```
+
 Class-level settings:
 
 ```ruby
@@ -188,6 +199,31 @@ end
 { "error": { "code": "validation_failed", "message": "Some fields are invalid.",
              "details": { "items[0].quantity": ["must be at least 1"] }, "request_id": "..." } }
 ```
+
+## Testing
+
+Whoosh classes are Rack apps, so Rails request specs and `Rack::Test` work as they are:
+
+```ruby
+get "/api/v1/orders", headers: { "Authorization" => "Bearer #{token}" }
+post "/api/v1/orders", params: { customer_id: 1, items: [] }, headers: headers, as: :json
+```
+
+Rate limits and idempotency keys are kept in one store for the whole process. In Rails, Whoosh clears it before every RSpec example and every `ActiveSupport::TestCase` test. Anywhere else, do it yourself:
+
+```ruby
+Whoosh.config.store.clear
+```
+
+## Logging
+
+With `config.logger` set (Rails sets it to `Rails.logger`), every request logs one line at info level:
+
+```
+[whoosh] GET /api/v1/orders 200 in 3.4ms request_id=21fc1a84-8a6f-43f2-a5cd-742a7abfdd3d
+```
+
+The query string is left out, because it can carry secrets. Unexpected errors are logged with their backtrace.
 
 ## OpenAPI
 

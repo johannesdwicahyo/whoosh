@@ -23,16 +23,27 @@ The goal is a gem people can install. Nothing new gets built.
 - [x] `git init` and first commit
 - [x] Keep the 1.x history on a `1.x` branch and push this history as the new `main`
 - [x] `gem push` 2.0.0
-- [ ] CI has never run (the GitHub account is locked on billing); tested locally on Ruby 3.3 and 3.4 only, so 3.2 and 4.0 are unverified
+- [x] Tested locally on Ruby 3.2, 3.3, 3.4 and 4.0 (as of 2.0.1)
+- [ ] CI has never run: the GitHub account is locked on billing
 
 ### Why 2.0.0 and not 0.1.0
 
 `whoosh` 1.0.1 to 1.10.0 are the old framework. RubyGems doesn't allow yanking versions older than 30 days, so they stay for good, and anything numbered below them would never be what `gem install whoosh` gives you. The rewrite was first pushed as 0.1.0 and is re-released as 2.0.0 for that reason.
 
-## 2.1.0: prove it in a real app
+## 2.0.x: prove it in a new app
+
+Fixes only, so these go out as patch releases.
+
+- [x] Build a throwaway Rails app on PostgreSQL with the published gem (`../whoosh-wibawa-demo`, findings in its `FINDINGS.md`)
+- [x] Cursor pagination on timestamps holds against a real database
+- [x] Testing: rate limits and idempotency keys no longer leak between tests in Rails; the reset is documented for everything else
+- [x] Log one line per request with status and duration
+- [x] README: show a helper method for a repeated `authorize` rule, and say that every API class must be listed in the mount line
+- [ ] Decide whether decimals should keep their scale (`"2000.50"`, today `"2000.5"`)
+
+## 2.1.0: prove it in a production app
 
 - [ ] Mount it in one production Rails app and move a real set of endpoints over
-- [ ] Fix whatever that hurts; this decides the rest of the list
 - [ ] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma), with the script in `bench/` so anyone can rerun it
 - [ ] Run `rake bench` in CI against the speed budget
 
