@@ -232,7 +232,25 @@ The query string is left out, because it can carry secrets. Unexpected errors ar
 
 ## Performance
 
-The full pipeline runs in about **30 µs** for a single record with auth, rate limiting, param validation and serialization, and about **140 µs** for 25 records, measured in-process on Ruby 3.3 (`rake bench`). Routes compile into a segment tree at boot. Schemas are plain Ruby objects with no per-request metaprogramming. JSON goes through Oj when available. In a real app, database time dominates.
+Whoosh's own work, with auth, rate limiting, param validation and serialization, takes about **7 µs** for one record and about **26 µs** for 25, measured in-process on Ruby 3.4 with YJIT (`rake bench`). Routes compile into a segment tree at boot. Schemas are plain Ruby objects with no per-request metaprogramming. JSON goes through Oj when available.
+
+Over HTTP, the same two endpoints written in Whoosh, Grape (with grape-entity) and a plain Rails API controller, all in one Puma process (`rake bench:http`):
+
+| Requests per second | 1 record | 25 records |
+|---|---|---|
+| **Mounted in a Rails app** | | |
+| Whoosh | 5,000 | 4,500 |
+| Rails controller | 4,650 | 4,450 |
+| Grape | 4,550 | 3,050 |
+| Empty response through Rails | 5,800 | |
+| **Straight on Puma, no Rails** | | |
+| Whoosh | 18,000 | 13,600 |
+| Grape | 13,900 | 6,400 |
+| Empty response | 31,000 | |
+
+Ruby 3.4.3 with YJIT, Puma with 5 threads, wrk with 16 connections, Apple M4 Pro, no database. Whoosh is the only one of the three doing rate limiting in this test.
+
+What to take from it: inside Rails, the Rails middleware stack costs more than any of the three, so Whoosh is about 8% ahead of a hand-written controller on a small response and level with it on a list. You get the validation, rate limiting and output schemas for free, not a faster app. Against Grape the gap is real: about 1.5 times the throughput on a list inside Rails, and twice on its own. In a real app, database time dominates all of this.
 
 ## Development
 
@@ -240,6 +258,7 @@ The full pipeline runs in about **30 µs** for a single record with auth, rate l
 bundle install
 bundle exec rake test
 bundle exec rake bench
+bundle exec rake bench:http   # needs wrk
 bundle exec rackup examples/config.ru
 ```
 

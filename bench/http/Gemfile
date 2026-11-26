@@ -1,0 +1,7 @@
+source "https://rubygems.org"
+
+gem "whoosh", path: "../.."
+gem "rails", "~> 8.1"
+gem "grape", "~> 2.3"
+gem "grape-entity"
+gem "puma"

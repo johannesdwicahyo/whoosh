@@ -46,7 +46,7 @@ Fixes only, so these go out as patch releases.
 ## 2.1.0: prove it in a production app
 
 - [ ] Mount it in one production Rails app and move a real set of endpoints over
-- [ ] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma), with the script in `bench/` so anyone can rerun it
+- [x] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma): `rake bench:http`, results in the README
 - [ ] Run `rake bench` in CI against the speed budget
 
 ## 2.2.0: make it easy to adopt
