@@ -121,11 +121,14 @@ module Whoosh
     end
 
     # Output: turn Ruby values into JSON-safe ones.
-    def dump(type, value)
+    def dump(type, value, scale = nil)
       return nil if value.nil?
 
       case type
-      when :decimal then value.is_a?(BigDecimal) ? value.to_s("F") : decimal(value).to_s("F")
+      when :decimal
+        if scale then fixed(value, scale)
+        else value.is_a?(BigDecimal) ? value.to_s("F") : decimal(value).to_s("F")
+        end
       when :date then value.respond_to?(:to_date) ? value.to_date.iso8601 : value.to_s
       when :datetime, :time then value.respond_to?(:iso8601) ? value.iso8601(3) : value.to_s
       when :integer then value.is_a?(Integer) ? value : integer(value)
@@ -135,6 +138,18 @@ module Whoosh
       when :json then plain(value)
       else value
       end
+    end
+
+    # A decimal with a fixed number of places: 2000.5 at scale 2 is "2000.50".
+    # BigDecimal doesn't remember trailing zeros, so the schema has to say.
+    def fixed(value, scale)
+      value = decimal(value)
+      return value.round.to_s if scale.zero?
+
+      rounded = value.round(scale)
+      rounded = rounded.abs if rounded.zero? # never "-0.00"
+      int, frac = rounded.to_s("F").split(".")
+      "#{int}.#{frac.ljust(scale, '0')}"
     end
 
     # Deep-convert a value into plain JSON types (for :json fields).

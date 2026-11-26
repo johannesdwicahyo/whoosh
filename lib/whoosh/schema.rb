@@ -19,7 +19,7 @@ module Whoosh
   class Schema
     # Largest array accepted on input when a field doesn't set max_items.
     DEFAULT_MAX_ITEMS = 100
-    FIELD_OPTIONS = %i[required default nullable enum min max min_length max_length min_items max_items
+    FIELD_OPTIONS = %i[required default nullable enum min max min_length max_length min_items max_items scale
                        format of from description example deprecated].freeze
 
     class Field
@@ -234,6 +234,9 @@ module Whoosh
         elsif value.is_a?(Numeric)
           add_error(errors, path, "must be at least #{opts[:min]}") if opts[:min] && value < opts[:min]
           add_error(errors, path, "must be at most #{opts[:max]}") if opts[:max] && value > opts[:max]
+          if opts[:scale] && value.is_a?(BigDecimal) && value.round(opts[:scale]) != value
+            add_error(errors, path, "must have at most #{opts[:scale]} decimal places")
+          end
         end
         _ = item
         value
@@ -275,8 +278,9 @@ module Whoosh
         when :array
           list = value.respond_to?(:to_a) ? value.to_a : Array(value)
           if field.item_schema? then list.map { |v| field.item_type.dump(v) }
-          else list.map { |v| Types.dump(field.item_type&.to_sym || :json, v) }
+          else list.map { |v| Types.dump(field.item_type&.to_sym || :json, v, field.options[:scale]) }
           end
+        when :decimal then Types.dump(:decimal, value, field.options[:scale])
         else Types.dump(field.type, value)
         end
       end
@@ -355,6 +359,12 @@ module Whoosh
         unless Types::NAMES.include?(sym)
           raise DefinitionError, "#{schema_name || 'Schema'}.#{name}: unknown type #{type.inspect}. " \
                                  "Use one of #{Types::NAMES.join(', ')} or a Whoosh::Schema subclass"
+        end
+        if options.key?(:scale)
+          decimal = sym == :decimal || (sym == :array && options[:of].to_s == "decimal")
+          unless decimal && options[:scale].is_a?(Integer) && options[:scale] >= 0
+            raise DefinitionError, "#{schema_name || 'Schema'}.#{name}: `scale:` takes a whole number, on decimals only"
+          end
         end
         if sym == :array && options[:of].nil?
           raise DefinitionError, "#{schema_name || 'Schema'}.#{name}: arrays need `of:` (a type or a schema)"

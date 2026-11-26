@@ -68,4 +68,23 @@ class RegressionTest < Minitest::Test
   ensure
     Whoosh.reset_config!
   end
+
+  def test_decimal_scale_pads_output_and_limits_input
+    schema = Class.new(Whoosh::Schema) do
+      field :price, :decimal, scale: 2
+      field :units, :decimal, scale: 0
+      field :rates, :array, of: :decimal, scale: 3
+    end
+
+    out = schema.dump({ price: BigDecimal("2000.5"), units: BigDecimal("3"), rates: [BigDecimal("0.1"), 2] })
+    assert_equal({ "price" => "2000.50", "units" => "3", "rates" => ["0.100", "2.000"] }, out)
+    assert_equal "0.00", schema.dump({ price: BigDecimal("-0.001") })["price"]
+    assert_equal "123456789012345678.90", schema.dump({ price: BigDecimal("123456789012345678.9") })["price"]
+
+    assert_equal BigDecimal("12.5"), schema.parse({ "price" => "12.50" })[:price]
+    error = assert_raises(Whoosh::ValidationError) { schema.parse({ "price" => "12.505" }) }
+    assert_match(/at most 2 decimal places/, error.errors.to_s)
+
+    assert_raises(Whoosh::DefinitionError) { Class.new(Whoosh::Schema) { field :name, :string, scale: 2 } }
+  end
 end

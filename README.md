@@ -176,7 +176,7 @@ end
 class OrderSchema < Whoosh::Schema
   field :id, :integer
   field :number, :string
-  field :total, :decimal                    # serialized as "125000.0", never a float
+  field :total, :decimal, scale: 2          # serialized as "125000.00", never a float
   field :status, :string, enum: %w[pending paid cancelled]
   field :placed_at, :datetime, from: :created_at
   field :customer, CustomerSchema
@@ -186,7 +186,8 @@ end
 ```
 
 - **Types:** `string text integer float decimal boolean date datetime time uuid email url array object json`.
-- **Options:** `required default nullable enum min max min_length max_length min_items max_items format of from description example deprecated`.
+- **Options:** `required default nullable enum min max min_length max_length min_items max_items scale format of from description example deprecated`.
+- **Decimals** are strings in JSON. Give them `scale:` to match the database column: at `scale: 2`, 2000.5 goes out as `"2000.50"` and input with more decimal places is a 422. Without it, trailing zeros are dropped (`"2000.5"`).
 - **Nesting:** pass a schema class, or a block (`field :address do ... end`).
 - **Free-form data** needs `:json`. A bare `:object` without a schema is a definition error.
 - **Strict input:** `reject_unknown!` makes unknown input keys a 422 instead of silently dropping them.

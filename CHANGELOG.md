@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2 (2026-11-26)
+
+- `scale:` on decimal fields. `field :price, :decimal, scale: 2` serializes 2000.5 as `"2000.50"`, and rejects input with more decimal places. Without `scale:` nothing changes
+
 ## 2.0.1 (2026-11-26)
 
 Found by building a new Rails app on the published gem.
