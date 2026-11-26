@@ -47,7 +47,7 @@ An endpoint can't leak data, skip auth or accept unchecked input unless you writ
   - at most 100 rows per page
   - 300 requests per minute per user or IP, per endpoint
 - **Rate limits apply before the 401 check**, so token guessing is throttled.
-- **One error envelope** for every failure, with a request ID. In production a 500 never includes the exception message.
+- **One error shape** for every failure, with a request ID: Whoosh's envelope, or RFC 9457 problem details. In production a 500 never includes the exception message.
 - **Locked-down headers:**
   - CORS is closed until you list origins
   - `nosniff`, `DENY` framing and `no-store` caching are on
@@ -208,6 +208,20 @@ end
 { "error": { "code": "validation_failed", "message": "Some fields are invalid.",
              "details": { "items[0].quantity": ["must be at least 1"] }, "request_id": "..." } }
 ```
+
+Errors can follow [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details instead, sent as `application/problem+json`:
+
+```ruby
+config.error_format = :problem
+```
+
+```json
+{ "type": "about:blank", "title": "Unprocessable Content", "status": 422,
+  "detail": "Some fields are invalid.", "code": "validation_failed",
+  "errors": { "items[0].quantity": ["must be at least 1"] }, "request_id": "..." }
+```
+
+`code`, `errors` and `request_id` are extension members, which the RFC allows. Success responses stay the same.
 
 ## Testing
 

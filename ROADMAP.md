@@ -45,7 +45,8 @@ Fixes only, so these go out as patch releases.
 
 ## 2.1.0: prove it in a production app
 
-- [ ] Mount it in one production Rails app and move a real set of endpoints over
+- [ ] Mount it in one production Rails app and move a real set of endpoints over. The app is TapSale (a POS with an iPad client): catalog reads first, orders and payments later
+- [x] Errors as RFC 9457 problem details (`config.error_format = :problem`), which TapSale's iOS client already decodes
 - [x] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma): `rake bench:http`, results in the README
 - [x] Run `rake bench` in CI against the speed budget (40 and 120 µs there: GitHub runners measured 25 and 81 µs, about 3.3 times slower than a developer machine)
 

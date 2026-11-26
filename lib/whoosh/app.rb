@@ -15,6 +15,7 @@ module Whoosh
       "cache-control" => "no-store"
     }.freeze
     JSON_CONTENT_TYPE = "application/json; charset=utf-8".freeze
+    PROBLEM_CONTENT_TYPE = "application/problem+json; charset=utf-8".freeze
     CORS_ALLOWED_HEADERS = %w[authorization content-type idempotency-key x-request-id accept].freeze
     OPENAPI_PATH = "/openapi.json".freeze
 
@@ -208,6 +209,11 @@ module Whoosh
     end
 
     def error_response(request, error)
+      if config.error_format == :problem
+        body = error.to_problem.transform_keys(&:to_s).merge("request_id" => request.request_id)
+        return json_response(error.status, body, error.headers.dup, PROBLEM_CONTENT_TYPE)
+      end
+
       body = { "error" => error.to_h.transform_keys(&:to_s).merge("request_id" => request.request_id) }
       json_response(error.status, body, error.headers.dup)
     end
@@ -253,13 +259,13 @@ module Whoosh
         raise Unauthorized
       end
 
-      @openapi_json ||= Whoosh::JSON.dump(OpenAPI.new(apis, server_url: request.script_name).document)
+      @openapi_json ||= Whoosh::JSON.dump(OpenAPI.new(apis, server_url: request.script_name, error_format: config.error_format).document)
       [200, { "content-type" => JSON_CONTENT_TYPE, "cache-control" => "no-cache" }, [@openapi_json]]
     end
 
-    def json_response(status, payload, headers)
+    def json_response(status, payload, headers, content_type = JSON_CONTENT_TYPE)
       body = Whoosh::JSON.dump(payload)
-      headers["content-type"] = JSON_CONTENT_TYPE
+      headers["content-type"] = content_type
       [status, headers, [body]]
     end
 
