@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.3.0 (unreleased)
+## 2.3.0 (2026-11-26)
 
 - `config.error_format = :problem` sends errors as RFC 9457 problem details (`application/problem+json`), with `code`, `errors` and `request_id` as extension members. The OpenAPI document follows. The default `{ "error": { ... } }` envelope is unchanged
 - README: says exactly when a missing access rule stops the app (production boot and tests, not the development server)
