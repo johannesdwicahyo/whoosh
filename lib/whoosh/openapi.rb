@@ -2,7 +2,8 @@ module Whoosh
   # Builds an OpenAPI 3.1 document from endpoint definitions. Named schema
   # classes become reusable components; inline ones are expanded in place.
   class OpenAPI
-    def initialize(apis, server_url: nil, title: nil, version: nil)
+    def initialize(apis, server_url: nil, title: nil, version: nil, error_format: Whoosh.config.error_format)
+      @problem = error_format == :problem
       @apis = apis
       @server_url = server_url
       @title = title
@@ -118,7 +119,7 @@ module Whoosh
       end
       error_codes(endpoint).each do |code, description|
         out[code] = { "description" => description,
-                      "content" => { "application/json" => { "schema" => { "$ref" => "#/components/schemas/Error" } } } }
+                      "content" => { error_media_type => { "schema" => { "$ref" => "#/components/schemas/Error" } } } }
       end
       out
     end
@@ -159,7 +160,28 @@ module Whoosh
       ([endpoint.verb.downcase] + parts).join("_").gsub(/[^a-zA-Z0-9_]/, "_")
     end
 
+    def error_media_type = @problem ? "application/problem+json" : "application/json"
+
+    # RFC 9457 problem details, plus the extension members Whoosh adds.
+    def problem_schema
+      {
+        "type" => "object",
+        "required" => %w[type title status detail code request_id],
+        "properties" => {
+          "type" => { "type" => "string" },
+          "title" => { "type" => "string" },
+          "status" => { "type" => "integer" },
+          "detail" => { "type" => "string" },
+          "code" => { "type" => "string" },
+          "errors" => { "type" => "object" },
+          "request_id" => { "type" => "string" }
+        }
+      }
+    end
+
     def error_schema
+      return problem_schema if @problem
+
       {
         "type" => "object",
         "required" => ["error"],

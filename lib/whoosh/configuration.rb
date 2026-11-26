@@ -50,7 +50,17 @@ module Whoosh
     # Which address to key rate limits on: ->(request) { request.ip }.
     attr_accessor :client_identifier
 
+    # Shape of error responses. :envelope is { "error": { ... } };
+    # :problem is RFC 9457 problem details, sent as application/problem+json.
+    attr_reader :error_format
+
+    def error_format=(format)
+      %i[envelope problem].include?(format) or raise ArgumentError, "error_format must be :envelope or :problem"
+      @error_format = format
+    end
+
     def initialize
+      @error_format = :envelope
       @authenticate = ->(_request) { nil }
       @cors_origins = []
       @cors_max_age = 600

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.0 (unreleased)
+
+- `config.error_format = :problem` sends errors as RFC 9457 problem details (`application/problem+json`), with `code`, `errors` and `request_id` as extension members. The OpenAPI document follows. The default `{ "error": { ... } }` envelope is unchanged
+- README: says exactly when a missing access rule stops the app (production boot and tests, not the development server)
+
 ## 2.2.0 (2026-11-26)
 
 - `bin/rails g whoosh:api Orders` writes a list and a show endpoint, a schema from the model's columns and a test, and adds the class to the mount line. Credential-like columns are left out of the schema; Rails enums become strings

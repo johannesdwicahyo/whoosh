@@ -126,4 +126,50 @@ class RegressionTest < Minitest::Test
                   "field :meta, :json", "field :created_at, :datetime", "field :role, :string"], lines
     assert_equal %w[password_digest location], skipped
   end
+
+  class StrictAPI < Whoosh::API
+    get "/things/:id" do
+      authorize { true }
+      params { required :id, :integer }
+      returns { field :id, :integer }
+      handle { |p| p[:id] == 402 ? error!(402, "payment_required", "Top up first.") : { id: p[:id] } }
+    end
+  end
+
+  def test_problem_json_error_format
+    Whoosh.reset_config!
+    Whoosh.config.error_format = :problem
+    Whoosh.config.authenticate = ->(req) { req.bearer_token }
+    Whoosh.config.openapi = true
+
+    status, headers, body = StrictAPI.call(env_for(:get, "/things/1"))
+    assert_equal 401, status
+    assert_equal "application/problem+json; charset=utf-8", headers["content-type"]
+    assert_equal({ "type" => "about:blank", "title" => "Unauthorized", "status" => 401,
+                   "detail" => "Sign in or send a valid token.", "code" => "unauthorized",
+                   "request_id" => headers["x-request-id"] }, JSON.parse(body.join))
+
+    status, _, body = StrictAPI.call(env_for(:get, "/things/abc", token: "t"))
+    problem = JSON.parse(body.join)
+    assert_equal 422, status
+    assert_equal "Unprocessable Content", problem["title"]
+    assert_equal({ "id" => ["must be a whole number"] }, problem["errors"])
+    refute problem.key?("error")
+
+    status, _, body = StrictAPI.call(env_for(:get, "/things/402", token: "t"))
+    assert_equal [402, "Payment Required", "payment_required"], [status, *JSON.parse(body.join).values_at("title", "code")]
+
+    # Success bodies and their content type are untouched.
+    status, headers, body = StrictAPI.call(env_for(:get, "/things/7", token: "t"))
+    assert_equal [200, "application/json; charset=utf-8", { "data" => { "id" => 7 } }],
+                 [status, headers["content-type"], JSON.parse(body.join)]
+
+    doc = JSON.parse(StrictAPI.call(env_for(:get, "/openapi.json"))[2].join)
+    assert_equal %w[type title status detail code request_id], doc.dig("components", "schemas", "Error", "required")
+    assert doc.dig("paths", "/things/{id}", "get", "responses", "401", "content", "application/problem+json")
+
+    assert_raises(ArgumentError) { Whoosh.config.error_format = :xml }
+  ensure
+    Whoosh.reset_config!
+  end
 end

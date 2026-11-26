@@ -20,6 +20,9 @@ Whoosh.configure do |config|
   # Serve /openapi.json. true, :authenticated, or false.
   config.openapi = Rails.env.development? ? true : false
 
+  # Send errors as RFC 9457 problem details (application/problem+json) instead of { "error": { ... } }.
+  # config.error_format = :problem
+
   # Report unexpected errors.
   # config.on_error = ->(error, request) { Sentry.capture_exception(error, extra: { request_id: request.request_id }) }
 end

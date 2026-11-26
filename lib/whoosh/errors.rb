@@ -7,7 +7,16 @@ module Whoosh
 
   # Every HTTP error renders as the same envelope:
   #   { "error": { "code": "...", "message": "...", "details": {...}, "request_id": "..." } }
+  # or, with config.error_format = :problem, as RFC 9457 problem details:
+  #   { "type": "about:blank", "title": "Not Found", "status": 404, "detail": "...", "code": "...", "request_id": "..." }
   class HTTPError < Error
+    # HTTP reason phrases (RFC 9110). With type "about:blank" the title has to be the phrase for the status.
+    TITLES = { 400 => "Bad Request", 401 => "Unauthorized", 402 => "Payment Required", 403 => "Forbidden",
+               404 => "Not Found", 405 => "Method Not Allowed", 409 => "Conflict", 410 => "Gone",
+               413 => "Content Too Large", 415 => "Unsupported Media Type", 422 => "Unprocessable Content",
+               429 => "Too Many Requests", 500 => "Internal Server Error", 502 => "Bad Gateway",
+               503 => "Service Unavailable", 504 => "Gateway Timeout" }.freeze
+
     attr_reader :status, :code, :details, :headers
 
     def initialize(message = nil, status: 500, code: "internal_error", details: nil, headers: {})
@@ -23,6 +32,13 @@ module Whoosh
     def to_h
       body = { code: code, message: message }
       body[:details] = details if details && !details.empty?
+      body
+    end
+
+    # RFC 9457. `code` and `errors` (field errors) are extension members.
+    def to_problem
+      body = { type: "about:blank", title: TITLES.fetch(status, "Error"), status: status, detail: message, code: code }
+      body[:errors] = details if details && !details.empty?
       body
     end
   end
