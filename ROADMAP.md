@@ -24,7 +24,7 @@ The goal is a gem people can install. Nothing new gets built.
 - [x] Keep the 1.x history on a `1.x` branch and push this history as the new `main`
 - [x] `gem push` 2.0.0
 - [x] Tested locally on Ruby 3.2, 3.3, 3.4 and 4.0 (as of 2.0.1)
-- [ ] CI has never run: the GitHub account is locked on billing
+- [x] CI runs: green on Ruby 3.2, 3.3, 3.4 and 4.0 since 2026-11-26
 
 ### Why 2.0.0 and not 0.1.0
 
@@ -47,7 +47,7 @@ Fixes only, so these go out as patch releases.
 
 - [ ] Mount it in one production Rails app and move a real set of endpoints over
 - [x] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma): `rake bench:http`, results in the README
-- [x] Run `rake bench` in CI against the speed budget (three times the local budget, since shared runners are slower; never run yet because of the billing lock, so tighten it after the first real runs)
+- [x] Run `rake bench` in CI against the speed budget (40 and 120 µs there: GitHub runners measured 25 and 81 µs, about 3.3 times slower than a developer machine)
 
 ## 2.2.0: make it easy to adopt
 
