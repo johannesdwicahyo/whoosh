@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.0 (2026-11-27)
+
+- `extra:` on `conflict!`, `error!` and `Whoosh::HTTPError.new` sends more data with an error, such as the current record on a 409. It appears under `error.extra`, or as extension members in problem details
+
 ## 2.3.0 (2026-11-26)
 
 - `config.error_format = :problem` sends errors as RFC 9457 problem details (`application/problem+json`), with `code`, `errors` and `request_id` as extension members. The OpenAPI document follows. The default `{ "error": { ... } }` envelope is unchanged

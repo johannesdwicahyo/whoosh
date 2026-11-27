@@ -17,12 +17,15 @@ module Whoosh
                429 => "Too Many Requests", 500 => "Internal Server Error", 502 => "Bad Gateway",
                503 => "Service Unavailable", 504 => "Gateway Timeout" }.freeze
 
-    attr_reader :status, :code, :details, :headers
+    attr_reader :status, :code, :details, :headers, :extra
 
-    def initialize(message = nil, status: 500, code: "internal_error", details: nil, headers: {})
+    # extra: more data for the client, such as the current state of a record on a 409.
+    # It is sent as given, so pass it through a schema yourself: extra: { order: OrderSchema.dump(order) }
+    def initialize(message = nil, status: 500, code: "internal_error", details: nil, headers: {}, extra: nil)
       @status = status
       @code = code
       @details = details
+      @extra = extra
       @headers = headers
       super(message || default_message)
     end
@@ -32,6 +35,7 @@ module Whoosh
     def to_h
       body = { code: code, message: message }
       body[:details] = details if details && !details.empty?
+      body[:extra] = extra if extra && !extra.empty?
       body
     end
 
@@ -39,7 +43,8 @@ module Whoosh
     def to_problem
       body = { type: "about:blank", title: TITLES.fetch(status, "Error"), status: status, detail: message, code: code }
       body[:errors] = details if details && !details.empty?
-      body
+      # extra becomes extension members; it can never replace a member Whoosh sets.
+      extra ? extra.to_h.transform_keys(&:to_sym).except(:request_id).merge(body) : body
     end
   end
 
@@ -57,8 +62,8 @@ module Whoosh
     InternalError: [500, "internal_error", "Something went wrong."]
   }.each do |name, (status, code, message)|
     klass = Class.new(HTTPError) do
-      define_method(:initialize) do |msg = nil, details: nil, headers: {}, code: nil|
-        super(msg || message, status: status, code: code || self.class::CODE, details: details, headers: headers)
+      define_method(:initialize) do |msg = nil, details: nil, headers: {}, code: nil, extra: nil|
+        super(msg || message, status: status, code: code || self.class::CODE, details: details, headers: headers, extra: extra)
       end
     end
     klass.const_set(:STATUS, status)
