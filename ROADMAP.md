@@ -45,10 +45,22 @@ Fixes only, so these go out as patch releases.
 
 ## 2.1.0: prove it in a production app
 
-- [ ] Mount it in one production Rails app and move a real set of endpoints over. The app is TapSale (a POS with an iPad client): catalog reads first, orders and payments later
+- [x] Mount it in a real Rails app. The app is TapSale, a POS with an iPad client: its four catalog reads (categories, products, one product, modifier groups) are Whoosh endpoints on the live server since 2026-11-27, next to Rails controllers that keep the writes
+- [ ] See a signed-in request go through it in production. So far only unauthenticated requests have been checked on the server; the first real one comes when an iPad build made after the move refreshes its catalog
+- [ ] Move the order and payment endpoints, which are still Rails controllers
 - [x] Errors as RFC 9457 problem details (`config.error_format = :problem`), which TapSale's iOS client already decodes
 - [x] HTTP-level benchmark against Grape and a plain Rails API controller (same endpoint, same Puma): `rake bench:http`, results in the README
 - [x] Run `rake bench` in CI against the speed budget (40 and 120 µs there: GitHub runners measured 25 and 81 µs, about 3.3 times slower than a developer machine)
+
+### What the move to TapSale showed
+
+It took one class and five schemas, and removed more code than it added. These are the places where Whoosh did not fit as it is:
+
+- **One response shape per endpoint.** The old endpoint returned a short or a full product depending on `?include=full`. `returns` takes one schema, so the endpoint now always returns the full shape. Fine here; a real limit for an API that needs both
+- **A 409 cannot carry a body.** TapSale answers a stale order update with 409 and the current order, so the app can show what changed. `conflict!` only takes a message. This is why orders have not moved
+- **Idempotency by a stored key.** The iPad replays queued orders days later with a `client_uuid` kept in the database. Whoosh's `Idempotency-Key` lives in a cache with a TTL, which is a different thing; TapSale keeps its own
+- **401 says less.** The controllers answered "token expired" or "invalid token"; `authenticate` returns a user or nil, so Whoosh can only say "Sign in or send a valid token."
+- **Mounting beside controllers** on the same paths needs a route constraint in the app (GET to Whoosh, the rest to Rails). It works, and the README does not mention it
 
 ## 2.2.0: make it easy to adopt
 
@@ -60,7 +72,8 @@ Fixes only, so these go out as patch releases.
 
 - Sliding-window rate limits
 - Multipart file uploads
-- Webhook signature verification
+- Webhook signature verification (TapSale's App Store webhook is the first real case)
+- A response body on `conflict!`, and a reason on a failed `authenticate`, if moving TapSale's orders needs them
 - Streaming responses
 
 ## Not doing
