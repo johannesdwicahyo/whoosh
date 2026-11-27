@@ -154,7 +154,10 @@ header "location", "/v1/orders/#{order.id}"
 not_found!  forbidden!  conflict!("Already paid")  bad_request!
 invalid!(quantity: "is more than the stock left")        # 422, field errors
 error!(402, "payment_required", "Top up your balance first.")
+conflict!("Changed since you loaded it", extra: { order: OrderSchema.dump(order) })
 ```
+
+`extra:` sends more data with an error, such as the current state of a record on a 409. It appears under `error.extra`, or as top-level members with `error_format = :problem`. It is sent as you give it, so pass records through a schema.
 
 A rule you repeat can live in `helpers`, since `authorize` blocks can call them:
 

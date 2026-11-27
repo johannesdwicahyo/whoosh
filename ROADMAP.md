@@ -57,7 +57,7 @@ Fixes only, so these go out as patch releases.
 It took one class and five schemas, and removed more code than it added. These are the places where Whoosh did not fit as it is:
 
 - **One response shape per endpoint.** The old endpoint returned a short or a full product depending on `?include=full`. `returns` takes one schema, so the endpoint now always returns the full shape. Fine here; a real limit for an API that needs both
-- **A 409 cannot carry a body.** TapSale answers a stale order update with 409 and the current order, so the app can show what changed. `conflict!` only takes a message. This is why orders have not moved
+- **A 409 cannot carry a body.** TapSale answers a stale order update with 409 and the current order, so the app can show what changed. Fixed in 2.4.0: `conflict!(message, extra: { order: ... })`
 - **Idempotency by a stored key.** The iPad replays queued orders days later with a `client_uuid` kept in the database. Whoosh's `Idempotency-Key` lives in a cache with a TTL, which is a different thing; TapSale keeps its own
 - **401 says less.** The controllers answered "token expired" or "invalid token"; `authenticate` returns a user or nil, so Whoosh can only say "Sign in or send a valid token."
 - **Mounting beside controllers** on the same paths needs a route constraint in the app (GET to Whoosh, the rest to Rails). It works, and the README does not mention it
@@ -73,7 +73,7 @@ It took one class and five schemas, and removed more code than it added. These a
 - Sliding-window rate limits
 - Multipart file uploads
 - Webhook signature verification (TapSale's App Store webhook is the first real case)
-- A response body on `conflict!`, and a reason on a failed `authenticate`, if moving TapSale's orders needs them
+- A reason on a failed `authenticate`, if a client needs to tell an expired token from a bad one
 - Streaming responses
 
 ## Not doing

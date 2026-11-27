@@ -172,4 +172,39 @@ class RegressionTest < Minitest::Test
   ensure
     Whoosh.reset_config!
   end
+
+  class ConflictAPI < Whoosh::API
+    get "/orders/:id" do
+      public!
+      returns { field :id, :integer }
+      handle do |p|
+        conflict!("Changed since you loaded it", extra: { order: { "id" => 7, "status" => "paid" }, status: 200, request_id: "forged" }) if p[:id] == "7"
+        error!(402, "payment_required", "Top up first.", extra: { "balance" => 0 }) if p[:id] == "8"
+        { id: 1 }
+      end
+    end
+  end
+
+  def test_errors_can_carry_extra_data
+    Whoosh.reset_config!
+    status, headers, body = ConflictAPI.call(env_for(:get, "/orders/7"))
+    error = JSON.parse(body.join).fetch("error")
+    assert_equal 409, status
+    assert_equal({ "id" => 7, "status" => "paid" }, error.dig("extra", "order"))
+    assert_equal headers["x-request-id"], error["request_id"]
+
+    Whoosh.config.error_format = :problem
+    status, headers, body = ConflictAPI.call(env_for(:get, "/orders/7"))
+    problem = JSON.parse(body.join)
+    assert_equal({ "id" => 7, "status" => "paid" }, problem["order"])
+    # extra can add members but never replace the ones Whoosh sets
+    assert_equal [409, 409, "Conflict", headers["x-request-id"]], [status, problem["status"], problem["title"], problem["request_id"]]
+
+    _, _, body = ConflictAPI.call(env_for(:get, "/orders/8"))
+    assert_equal [402, 0], JSON.parse(body.join).values_at("status", "balance")
+    _, _, body = ConflictAPI.call(env_for(:get, "/orders/9"))
+    assert_equal({ "data" => { "id" => 1 } }, JSON.parse(body.join))
+  ensure
+    Whoosh.reset_config!
+  end
 end

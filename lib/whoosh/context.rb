@@ -38,7 +38,8 @@ module Whoosh
     def not_found!(message = nil) = raise(NotFound.new(message))
     def forbidden!(message = nil) = raise(Forbidden.new(message))
     def unauthorized!(message = nil) = raise(Unauthorized.new(message))
-    def conflict!(message = nil, code: nil) = raise(Conflict.new(message, code: code))
+    # extra: carries data with the error, e.g. conflict!("Changed elsewhere", extra: { order: OrderSchema.dump(order) })
+    def conflict!(message = nil, code: nil, extra: nil) = raise(Conflict.new(message, code: code, extra: extra))
     def bad_request!(message = nil, code: nil) = raise(BadRequest.new(message, code: code))
 
     # Field-level errors, same shape as schema validation:
@@ -49,8 +50,8 @@ module Whoosh
     end
 
     # Any status and code: error!(402, "payment_required", "Top up your balance first.")
-    def error!(status, code, message, details: nil)
-      raise HTTPError.new(message, status: status, code: code, details: details)
+    def error!(status, code, message, details: nil, extra: nil)
+      raise HTTPError.new(message, status: status, code: code, details: details, extra: extra)
     end
   end
 end
