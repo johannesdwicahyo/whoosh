@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.4.0 (unreleased)
+## 2.4.0 (2026-11-27)
 
 - `extra:` on `conflict!`, `error!` and `Whoosh::HTTPError.new` sends more data with an error, such as the current record on a 409. It appears under `error.extra`, or as extension members in problem details
 
